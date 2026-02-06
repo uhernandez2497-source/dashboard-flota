@@ -21,7 +21,7 @@ import sys
 from datetime import datetime
 
 # ── CONFIGURACION ──
-ONEDRIVE_URL = 'https://proxylogis-my.sharepoint.com/personal/carlosu_hernandez_mecanicatek_com/_layouts/15/download.aspx?share=IQD1veTLe2bTQIoFUNNe7y3yAbHvcj7IDM0w9biOCEQXTLw'
+ONEDRIVE_URL = 'https://proxylogis-my.sharepoint.com/personal/carlosu_hernandez_mecanicatek_com/_layouts/15/download.aspx?share=IQD1veTLe2bTQIoFUNNe7y3yAUzwHQ-2YN3uHUdOc4vF8Fs'
 SHEET_NAME = 'bd'
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(SCRIPT_DIR, 'data.json')
