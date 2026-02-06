@@ -102,7 +102,7 @@
     <div class="hbadge"><span class="status-dot loading" id="sDot"></span><span id="sTxt">Conectando...</span></div>
     <div class="hbadge" id="bRec">-- registros</div>
     <div class="hbadge" id="bUpd">Sin actualizar</div>
-    <button class="hbtn" id="refreshBtn" onclick="loadFromOneDrive()">
+    <button class="hbtn" id="refreshBtn" onclick="refreshData()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.3"/></svg>Actualizar
     </button>
     <button class="hbtn pdf-btn" onclick="generateSummary()">
@@ -160,7 +160,7 @@
 
 <script>
 const ONEDRIVE_DL='https://proxylogis-my.sharepoint.com/personal/carlosu_hernandez_mecanicatek_com/_layouts/15/download.aspx?share=IQD1veTLe2bTQIoFUNNe7y3yAbHvcj7IDM0w9biOCEQXTLw';
-const PROXIES=[u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`];
+const PROXIES=[u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,u=>`https://corsproxy.org/?${encodeURIComponent(u)}`];
 const COL={equipo:4,tipo_equipo:8,marca:10,modelo:11,razon:13,refaccion:32,mano_obra:33,otros:34,total:35,dias_real:40,dias_atraso:41,nodo:45,region:46,clasificacion:63,tipo_servicio:64,tiempo:68,familia:69,mes:70,ano:71,grupo:7};
 const MO={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12};
 const MS={enero:'Ene',febrero:'Feb',marzo:'Mar',abril:'Abr',mayo:'May',junio:'Jun',julio:'Jul',agosto:'Ago',septiembre:'Sep',octubre:'Oct',noviembre:'Nov',diciembre:'Dic'};
@@ -173,7 +173,7 @@ async function loadFromOneDrive(){
   document.getElementById('refreshBtn').classList.add('spinning');
   let ab=null;
   for(let i=0;i<PROXIES.length;i++){
-    try{setSt('loading',`Proxy ${i+1}/${PROXIES.length}...`);const r=await fetch(PROXIES[i](ONEDRIVE_DL),{headers:{'X-Requested-With':'XMLHttpRequest'}});if(!r.ok)throw new Error(`HTTP ${r.status}`);ab=await r.arrayBuffer();if(ab.byteLength<1000)throw new Error('Too small');break;}
+    try{setSt('loading',`Proxy ${i+1}/${PROXIES.length}...`);const ac=new AbortController();const tid=setTimeout(()=>ac.abort(),10000);const r=await fetch(PROXIES[i](ONEDRIVE_DL),{headers:{'X-Requested-With':'XMLHttpRequest'},signal:ac.signal});clearTimeout(tid);if(!r.ok)throw new Error(`HTTP ${r.status}`);ab=await r.arrayBuffer();if(ab.byteLength<1000)throw new Error('Too small');break;}
     catch(e){console.warn(`Proxy ${i+1}:`,e.message);if(i===PROXIES.length-1){setSt('error','No se pudo conectar a OneDrive.');document.getElementById('refreshBtn').classList.remove('spinning');return;}}
   }
   try{
@@ -192,6 +192,29 @@ async function loadFromOneDrive(){
   document.getElementById('refreshBtn').classList.remove('spinning');
 }
 function setSt(s,m){document.getElementById('sDot').className=`status-dot ${s}`;document.getElementById('cBanner').className=`conn-banner ${s==='ok'?'':s}`;document.getElementById('sTxt').textContent={ok:'Conectado',loading:'Cargando...',error:'Error'}[s]||s;document.getElementById('cMsg').textContent=m;document.getElementById('loadingText').textContent=m;}
+
+// ── LOAD FROM LOCAL JSON (no CORS, always works) ──
+async function loadFromJSON(){
+  setSt('loading','Cargando datos locales...');
+  try{
+    const r=await fetch('data.json?t='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);
+    const json=await r.json();const records=json.data||json;
+    if(!Array.isArray(records)||!records.length)throw new Error('Sin registros');
+    RAW=records;
+    const ts=json.updated?new Date(json.updated).toLocaleString('es-MX'):'data.json';
+    setSt('ok',RAW.length+' registros | '+ts);
+    document.getElementById('bUpd').textContent=ts;
+    document.getElementById('fTs').textContent='Datos desde data.json | '+RAW.length+' registros | '+ts;
+    try{localStorage.setItem('dashRAW',JSON.stringify(RAW));localStorage.setItem('dashTS',ts);}catch(e){}
+    setupF();updateAll();return true;
+  }catch(e){console.warn('loadFromJSON:',e.message);return false;}
+}
+
+// ── REFRESH: OneDrive -> data.json fallback ──
+async function refreshData(){
+  await loadFromOneDrive();
+  if(!RAW.length){await loadFromJSON();}
+}
 
 // ── FILTERS ──
 function setupF(){
@@ -416,6 +439,7 @@ document.getElementById("copyBtn").onclick=function(){var r=document.createRange
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded',async()=>{
+  // 1. Cache local (instantaneo)
   const cached=localStorage.getItem('dashRAW');
   if(cached){
     try{RAW=JSON.parse(cached);const ts=localStorage.getItem('dashTS')||'Cache';
@@ -423,8 +447,16 @@ document.addEventListener('DOMContentLoaded',async()=>{
     document.getElementById('bUpd').textContent=ts+' (cache)';
     document.getElementById('fTs').textContent='Datos en cache desde: '+ts;
     setupF();updateAll();
-    }catch(e){await loadFromOneDrive();}
-  }else{await loadFromOneDrive();}
+    setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);return;
+    }catch(e){console.warn('Cache corrupto, intentando data.json');}
+  }
+  // 2. data.json local (sin CORS, siempre funciona en GitHub Pages)
+  if(await loadFromJSON()){
+    setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);return;
+  }
+  // 3. OneDrive via proxies (ultimo recurso)
+  await loadFromOneDrive();
+  // 4. Siempre ocultar overlay, incluso en error
   setTimeout(()=>document.getElementById('loading').classList.add('hide'),500);
 });
 </script>
