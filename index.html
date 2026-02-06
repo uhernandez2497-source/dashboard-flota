@@ -173,7 +173,7 @@ async function loadFromOneDrive(){
   document.getElementById('refreshBtn').classList.add('spinning');
   let ab=null;
   for(let i=0;i<PROXIES.length;i++){
-    try{setSt('loading',`Proxy ${i+1}/${PROXIES.length}...`);const ac=new AbortController();const tid=setTimeout(()=>ac.abort(),10000);const r=await fetch(PROXIES[i](ONEDRIVE_DL),{headers:{'X-Requested-With':'XMLHttpRequest'},signal:ac.signal});clearTimeout(tid);if(!r.ok)throw new Error(`HTTP ${r.status}`);ab=await r.arrayBuffer();if(ab.byteLength<1000)throw new Error('Too small');break;}
+    try{setSt('loading',`Proxy ${i+1}/${PROXIES.length}...`);const ac=new AbortController();const tid=setTimeout(()=>ac.abort(),3000);const r=await fetch(PROXIES[i](ONEDRIVE_DL),{headers:{'X-Requested-With':'XMLHttpRequest'},signal:ac.signal});clearTimeout(tid);if(!r.ok)throw new Error(`HTTP ${r.status}`);ab=await r.arrayBuffer();if(ab.byteLength<1000)throw new Error('Too small');break;}
     catch(e){console.warn(`Proxy ${i+1}:`,e.message);if(i===PROXIES.length-1){setSt('error','No se pudo conectar a OneDrive.');document.getElementById('refreshBtn').classList.remove('spinning');return;}}
   }
   try{
@@ -197,7 +197,7 @@ function setSt(s,m){document.getElementById('sDot').className=`status-dot ${s}`;
 async function loadFromJSON(){
   setSt('loading','Cargando datos locales...');
   try{
-    const r=await fetch('data.json?t='+Date.now());if(!r.ok)throw new Error('HTTP '+r.status);
+    const r=await fetch('data.json?cb='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);
     const json=await r.json();const records=json.data||json;
     if(!Array.isArray(records)||!records.length)throw new Error('Sin registros');
     RAW=records;
@@ -439,22 +439,27 @@ document.getElementById("copyBtn").onclick=function(){var r=document.createRange
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded',async()=>{
-  // 1. Cache local (instantaneo)
+  console.log('[Dashboard] Iniciando carga de datos...');
+  // 1. data.json local (PRIORIDAD, sin CORS, siempre funciona en GitHub Pages)
+  if(await loadFromJSON()){
+    console.log('[Dashboard] Datos cargados desde data.json');
+    setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);return;
+  }
+  console.warn('[Dashboard] data.json fallo, intentando cache...');
+  // 2. Cache local como fallback
   const cached=localStorage.getItem('dashRAW');
   if(cached){
     try{RAW=JSON.parse(cached);const ts=localStorage.getItem('dashTS')||'Cache';
+    console.log('[Dashboard] Usando cache local:',RAW.length,'registros');
     setSt('ok',RAW.length+' registros (cache) | '+ts);
     document.getElementById('bUpd').textContent=ts+' (cache)';
     document.getElementById('fTs').textContent='Datos en cache desde: '+ts;
     setupF();updateAll();
     setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);return;
-    }catch(e){console.warn('Cache corrupto, intentando data.json');}
-  }
-  // 2. data.json local (sin CORS, siempre funciona en GitHub Pages)
-  if(await loadFromJSON()){
-    setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);return;
+    }catch(e){console.warn('[Dashboard] Cache corrupto:',e.message);}
   }
   // 3. OneDrive via proxies (ultimo recurso)
+  console.warn('[Dashboard] Intentando OneDrive como ultimo recurso...');
   await loadFromOneDrive();
   // 4. Siempre ocultar overlay, incluso en error
   setTimeout(()=>document.getElementById('loading').classList.add('hide'),500);
