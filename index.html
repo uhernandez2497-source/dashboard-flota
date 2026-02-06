@@ -7,8 +7,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
   :root{--bg:#f0f4f8;--card:#fff;--primary:#2563eb;--primary-light:#dbeafe;--primary-dark:#1e40af;--accent:#7c3aed;--accent-light:#ede9fe;--teal:#0d9488;--teal-light:#ccfbf1;--orange:#ea580c;--orange-light:#fff7ed;--red:#dc2626;--red-light:#fef2f2;--green:#16a34a;--green-light:#f0fdf4;--text:#1e293b;--text-sec:#64748b;--text-m:#94a3b8;--border:#e2e8f0;--shadow:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);--shadow-lg:0 4px 24px rgba(0,0,0,.08);--radius:16px}
@@ -89,31 +87,11 @@
   ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
   footer{text-align:center;padding:20px 0;color:var(--text-m);font-size:10px}
 
-  /* PDF overlay */
-  .pdf-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:9998}
-  .pdf-overlay.show{display:flex}
-  .pdf-box{background:#fff;border-radius:16px;padding:32px;text-align:center;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-  .pdf-box h3{margin-bottom:8px;font-size:16px}.pdf-box p{font-size:12px;color:var(--text-sec);margin-bottom:16px}
-  .pdf-progress{width:100%;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin-bottom:12px}
-  .pdf-progress-bar{height:100%;background:var(--primary);border-radius:3px;transition:width .3s;width:0%}
-  .pdf-status{font-size:11px;color:var(--text-m)}
 </style>
 </head>
 <body>
 <div class="loading-overlay" id="loading"><div class="spinner"></div><div class="ltxt" id="loadingText">Conectando con OneDrive...</div></div>
 
-<div class="pdf-overlay" id="pdfOverlay">
-  <div class="pdf-box">
-    <h3 id="pdfTitle">Generando Reporte PDF</h3>
-    <p id="pdfDesc">Capturando graficos y datos del dashboard...</p>
-    <div class="pdf-progress"><div class="pdf-progress-bar" id="pdfBar"></div></div>
-    <div class="pdf-status" id="pdfStatus">Iniciando...</div>
-    <div id="pdfActions" style="display:none;margin-top:16px;gap:8px;justify-content:center">
-      <button onclick="emailPDF()" style="background:#2563eb;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600">&#9993; Enviar por Correo</button>
-      <button onclick="closePDFOverlay()" style="background:#e2e8f0;color:#1e293b;border:none;padding:8px 18px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600">Cerrar</button>
-    </div>
-  </div>
-</div>
 
 <div class="header">
   <div class="header-left">
@@ -127,8 +105,8 @@
     <button class="hbtn" id="refreshBtn" onclick="loadFromOneDrive()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.3"/></svg>Actualizar
     </button>
-    <button class="hbtn pdf-btn" onclick="generatePDF()">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Resumen PDF
+    <button class="hbtn pdf-btn" onclick="generateSummary()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Resumen
     </button>
   </div>
 </div>
@@ -290,217 +268,150 @@ function uDsg(d){dc('cDesglose');const g=gb(d,r=>`${MS[r.mes]||r.mes} ${r.ano}`)
   CH['cDesglose']=new Chart(document.getElementById('cDesglose'),{type:'bar',data:{labels:p,datasets:[{label:'Refacciones',data:p.map(x=>g[x].reduce((s,r)=>s+r.precio_refaccion,0)),backgroundColor:'#2563eb',borderRadius:3,stack:'a'},{label:'Mano Obra',data:p.map(x=>g[x].reduce((s,r)=>s+r.precio_mano_obra,0)),backgroundColor:'#7c3aed',borderRadius:3,stack:'a'},{label:'Otros',data:p.map(x=>g[x].reduce((s,r)=>s+r.precio_otros,0)),backgroundColor:'#ea580c',borderRadius:3,stack:'a'}]},options:{responsive:!0,plugins:{legend:{position:'top',labels:{usePointStyle:!0,padding:12,font:{size:10}}},datalabels:{display:!1}},scales:{y:{stacked:!0,ticks:{callback:v=>fm(v),font:{size:9}},grid:{color:'#f1f5f9'}},x:{stacked:!0,grid:{display:!1},ticks:{font:{size:9}}}}},plugins:[ChartDataLabels]});}
 
 // ══════════════════════════════════════
-// PDF GENERATION
+// REPORT GENERATION (instant HTML)
 // ══════════════════════════════════════
-async function generatePDF(){
-  const overlay=document.getElementById('pdfOverlay');
-  const bar=document.getElementById('pdfBar');
-  const status=document.getElementById('pdfStatus');
-  overlay.classList.add('show');
-  bar.style.width='5%';status.textContent='Preparando datos...';
-
+function generateSummary(){
+  if(!RAW.length){alert('No hay datos. Use Actualizar primero.');return;}
   const d=gF();
   const tG=d.reduce((s,r)=>s+r.total,0),tH=d.reduce((s,r)=>s+r.tiempo_estandar,0),tS=d.length;
   const vU=new Set(d.map(r=>r.equipo)).size;
   const aD=tS?d.reduce((s,r)=>s+r.dias_real,0)/tS:0;
   const cA=d.filter(r=>r.dias_atraso>0).length;
-  const filtros=getFilterDesc();
   const fecha=new Date().toLocaleString('es-MX');
-
-  // Gasto por vehiculo
   const vG={};d.forEach(r=>{vG[r.equipo]=(vG[r.equipo]||0)+r.total;});
   const top5=Object.entries(vG).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  // Horas por vehiculo
   const vH={};d.forEach(r=>{vH[r.equipo]=(vH[r.equipo]||0)+r.tiempo_estandar;});
   const top5h=Object.entries(vH).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  // Clasificacion
   const clG={};d.forEach(r=>{const c=r.clasificacion||'Sin clasificar';clG[c]=(clG[c]||0)+1;});
-  // Tipo servicio
   const tsG={};d.forEach(r=>{const t=r.tipo_servicio||'Sin tipo';tsG[t]=(tsG[t]||0)+1;});
   const tsS=Object.entries(tsG).sort((a,b)=>b[1]-a[1]);
-  // Por mes
   const mG=gb(d,r=>`${MS[r.mes]||r.mes} ${r.ano}`);
   const mP=sp(Object.keys(mG));
-  // Pareto
   const paretoS=Object.entries(vG).sort((a,b)=>b[1]-a[1]);
   let acP=0;const totalP=paretoS.reduce((s,e)=>s+e[1],0);
   const vitales=paretoS.filter(([_,g])=>{acP+=g;return(acP-g)/totalP<0.8;});
-  // Desglose
   const tRef=d.reduce((s,r)=>s+r.precio_refaccion,0);
   const tMO=d.reduce((s,r)=>s+r.precio_mano_obra,0);
   const tOtros=d.reduce((s,r)=>s+r.precio_otros,0);
+  const fA=F.year==='all'?'Todos':F.year,fMe=F.month==='all'?'Todos':cap(F.month);
+  const fT=F.tipo==='all'?'Todos':F.tipo,fCl=F.clasif==='all'?'Todos':F.clasif;
 
-  await new Promise(r=>setTimeout(r,200));
-  bar.style.width='15%';status.textContent='Capturando graficos...';
+  let mesR='';mP.forEach(p=>{const rr=mG[p],g=rr.reduce((s,r)=>s+r.total,0),h=rr.reduce((s,r)=>s+r.tiempo_estandar,0);mesR+=`<tr><td>${p}</td><td>${rr.length}</td><td>${fm(g)}</td><td>${fn(h)}h</td><td>${fm(rr.length?g/rr.length:0)}</td></tr>`;});
+  let t5r='';top5.forEach(([v,g],i)=>{t5r+=`<tr><td>#${i+1}</td><td>${v}</td><td>${fm(g)}</td><td>${fp(totalP?g/totalP:0)}</td><td>${fn(vH[v]||0)}h</td></tr>`;});
+  let t5h='';top5h.forEach(([v,h],i)=>{t5h+=`<tr><td>#${i+1}</td><td>${v}</td><td>${fn(h)}h</td><td>${fm(vG[v]||0)}</td></tr>`;});
+  let clR='';Object.entries(clG).sort((a,b)=>b[1]-a[1]).forEach(([c,n])=>{clR+=`<tr><td>${c}</td><td>${n}</td><td>${fp(n/tS)}</td></tr>`;});
+  let tsR='';tsS.forEach(([t,n])=>{tsR+=`<tr><td>${t}</td><td>${n}</td><td>${fp(n/tS)}</td></tr>`;});
+  let pR='';acP=0;vitales.forEach(([v,g],i)=>{acP+=g;pR+=`<tr><td>#${i+1}</td><td>${v}</td><td>${fm(g)}</td><td>${fp(totalP?acP/totalP:0)}</td></tr>`;});
 
-  const {jsPDF}=window.jspdf;
-  const pdf=new jsPDF('p','mm','a4');
-  const W=210,H=297,M=15,CW=W-2*M;
-  let y=M;
+  const eSub=encodeURIComponent('Reporte Mantenimiento Flota - '+new Date().toLocaleDateString('es-MX')).replace(/'/g,'%27');
+  const eBody=encodeURIComponent('REPORTE MANTENIMIENTO DE FLOTA
+'+fecha+'
 
-  function addPage(){pdf.addPage();y=M;}
-  function checkSpace(need){if(y+need>H-15)addPage();}
-  function title(t,size=16){pdf.setFontSize(size);pdf.setTextColor(27,42,74);pdf.setFont('helvetica','bold');pdf.text(t,M,y);y+=size*0.5+2;}
-  function subtitle(t){pdf.setFontSize(11);pdf.setTextColor(37,99,235);pdf.setFont('helvetica','bold');pdf.text(t,M,y);y+=7;}
-  function body(t){pdf.setFontSize(9);pdf.setTextColor(51,65,85);pdf.setFont('helvetica','normal');const lines=pdf.splitTextToSize(t,CW);pdf.text(lines,M,y);y+=lines.length*4.5;}
-  function separator(){pdf.setDrawColor(226,232,240);pdf.line(M,y,W-M,y);y+=4;}
-  function bullet(t){pdf.setFontSize(9);pdf.setTextColor(51,65,85);pdf.setFont('helvetica','normal');const lines=pdf.splitTextToSize('  - '+t,CW-5);pdf.text(lines,M+2,y);y+=lines.length*4.2;}
+Filtros: Ano '+fA+' | Mes '+fMe+' | Tipo '+fT+' | Clasif '+fCl+'
+Registros: '+d.length+' de '+RAW.length+'
 
-  // ── PAGE 1: Header + KPIs ──
-  pdf.setFillColor(27,42,74);pdf.rect(0,0,W,35,'F');
-  pdf.setFontSize(18);pdf.setTextColor(255,255,255);pdf.setFont('helvetica','bold');
-  pdf.text('REPORTE EJECUTIVO',M,16);
-  pdf.setFontSize(11);pdf.text('Dashboard de Mantenimiento de Flota',M,24);
-  pdf.setFontSize(8);pdf.setFont('helvetica','normal');pdf.text(`Generado: ${fecha}`,M,31);
-  pdf.text(`Filtros: ${filtros}`,W-M-pdf.getTextWidth(`Filtros: ${filtros}`),31);
-  y=42;
+INDICADORES:
+- Gasto Total: '+fm(tG)+'
+- Horas: '+fn(tH)+'h
+- Servicios: '+tS+'
+- Vehiculos: '+vU+'
+- Atrasos: '+cA+' ('+((tS?(cA/tS*100).toFixed(0):0))+'%)
 
-  bar.style.width='20%';status.textContent='Detallando filtros aplicados...';
+TOP 5 GASTO:
+'+top5.map(([v,g],i)=>(i+1)+'. '+v+': '+fm(g)).join('
+')+'
 
-  // Filtros aplicados box
-  pdf.setFillColor(219,234,254);pdf.setDrawColor(147,197,253);
-  pdf.roundedRect(M,y,CW,20,2,2,'FD');
-  pdf.setFontSize(10);pdf.setTextColor(30,64,175);pdf.setFont('helvetica','bold');
-  pdf.text('FILTROS APLICADOS',M+4,y+6);
-  pdf.setFontSize(9);pdf.setTextColor(51,65,85);pdf.setFont('helvetica','normal');
-  const fLine='Ano: '+(F.year==='all'?'Todos':F.year)+'  |  Mes: '+(F.month==='all'?'Todos':cap(F.month))+'  |  Tipo: '+(F.tipo==='all'?'Todos':F.tipo)+'  |  Clasif: '+(F.clasif==='all'?'Todos':F.clasif);
-  pdf.text(fLine,M+4,y+12);
-  pdf.setFontSize(8);pdf.setTextColor(100,116,139);
-  pdf.text('Registros filtrados: '+d.length+' de '+RAW.length+' totales',M+4,y+17);
-  y+=24;
+CONCLUSIONES:
+- '+vitales.length+' vehiculos = 80% del gasto
+- Refacciones: '+fm(tRef)+' | M.Obra: '+fm(tMO)+' | Otros: '+fm(tOtros)).replace(/'/g,'%27');
 
-  bar.style.width='25%';status.textContent='Escribiendo resumen ejecutivo...';
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Resumen Mantenimiento</title>
+<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Inter',sans-serif;color:#1e293b;background:#f8fafc}
+.act{background:#1e40af;padding:12px 32px;display:flex;gap:10px;align-items:center;position:sticky;top:0;z-index:100;flex-wrap:wrap}
+.act button{padding:8px 20px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px}
+.bp{background:#fff;color:#1e40af}.be{background:#16a34a;color:#fff}.bc{background:#7c3aed;color:#fff}
+.rpt{max-width:800px;margin:0 auto;padding:32px;background:#fff;min-height:100vh}
+.hdr{background:linear-gradient(135deg,#1e40af,#2563eb);color:#fff;padding:24px;border-radius:12px;margin-bottom:24px}
+.hdr h1{font-size:22px;margin-bottom:4px}.hdr p{font-size:12px;opacity:.8}
+.fbox{background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:14px 18px;margin-bottom:24px}
+.fbox h3{font-size:12px;color:#1e40af;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.tags{display:flex;gap:8px;flex-wrap:wrap}.tag{background:#fff;border:1px solid #93c5fd;padding:4px 12px;border-radius:6px;font-size:12px;font-weight:600;color:#1e40af}
+.cnt{font-size:11px;color:#64748b;margin-top:8px}
+.kg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+.kpi{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;text-align:center}
+.kpi .lb{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#64748b;font-weight:700}
+.kpi .vl{font-size:22px;font-weight:800;margin:4px 0}.kpi .sb{font-size:10px;color:#94a3b8}
+.kpi.bl .vl{color:#2563eb}.kpi.tl .vl{color:#0d9488}.kpi.pp .vl{color:#7c3aed}
+.kpi.or .vl{color:#ea580c}.kpi.gn .vl{color:#16a34a}.kpi.rd .vl{color:#dc2626}
+section{margin-bottom:24px}h2{font-size:15px;color:#1e40af;border-left:4px solid #2563eb;padding-left:10px;margin-bottom:12px}
+p.ds{font-size:12px;color:#475569;line-height:1.6;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}
+th{background:#f1f5f9;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:#64748b;border-bottom:2px solid #e2e8f0}
+td{padding:7px 10px;border-bottom:1px solid #f1f5f9}tr:hover{background:#f8fafc}
+.conc{background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:18px;margin-top:24px}
+.conc h2{color:#166534;border-color:#16a34a}.conc li{font-size:12px;line-height:1.7;margin-bottom:8px;color:#166534}
+.ft{text-align:center;padding:20px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;margin-top:24px}
+@media(max-width:700px){.kg{grid-template-columns:repeat(2,1fr)}.act{padding:10px 16px}.rpt{padding:16px}}
+@media print{.act{display:none!important}body{background:#fff}.rpt{padding:15px;max-width:100%}section{break-inside:avoid}.hdr{break-after:avoid}}
+</style></head><body>
+<div class="act">
+<button class="bp" onclick="window.print()">&#128424; Imprimir / Guardar PDF</button>
+<button class="be" id="emailBtn">&#9993; Enviar por Correo</button>
+<button class="bc" id="copyBtn">&#128203; Copiar Resumen</button>
+<span style="color:rgba(255,255,255,.7);font-size:11px;margin-left:auto">${fecha}</span>
+</div>
+<div class="rpt" id="rc">
+<div class="hdr"><h1>REPORTE EJECUTIVO - MANTENIMIENTO DE FLOTA</h1><p>Dashboard de Mantenimiento | ${fecha}</p></div>
+<div class="fbox"><h3>Filtros Aplicados</h3><div class="tags"><span class="tag">Ano: ${fA}</span><span class="tag">Mes: ${fMe}</span><span class="tag">Tipo: ${fT}</span><span class="tag">Clasificacion: ${fCl}</span></div><div class="cnt">${d.length} registros filtrados de ${RAW.length} totales</div></div>
+<div class="kg">
+<div class="kpi bl"><div class="lb">Gasto Total</div><div class="vl">${fm(tG)}</div><div class="sb">${fm(tS?tG/tS:0)}/serv</div></div>
+<div class="kpi tl"><div class="lb">Horas Totales</div><div class="vl">${fn(tH)}h</div><div class="sb">${tS?(tH/tS).toFixed(1):'0'} hrs/serv</div></div>
+<div class="kpi pp"><div class="lb">Servicios</div><div class="vl">${tS}</div><div class="sb">${vU} vehiculos</div></div>
+<div class="kpi or"><div class="lb">Prom Dias/Serv</div><div class="vl">${aD.toFixed(1)}</div><div class="sb">dias promedio</div></div>
+<div class="kpi gn"><div class="lb">Vehiculos</div><div class="vl">${vU}</div><div class="sb">unicos en periodo</div></div>
+<div class="kpi rd"><div class="lb">Con Atraso</div><div class="vl">${cA}</div><div class="sb">${tS?(cA/tS*100).toFixed(0):0}% del total</div></div>
+</div>
+<section><h2>Resumen Ejecutivo</h2>
+<p class="ds">Analisis basado en <strong>${tS} ordenes de servicio</strong> de <strong>${vU} vehiculos</strong>. Gasto total: <strong>${fm(tG)}</strong>, consumo: <strong>${fn(tH)} horas</strong>. Promedio ${aD.toFixed(1)} dias/servicio. ${cA} servicios con atraso (${tS?(cA/tS*100).toFixed(0):0}%).</p>
+<p class="ds"><strong>Desglose:</strong> Refacciones ${fm(tRef)} (${totalP?(tRef/totalP*100).toFixed(0):0}%) | Mano de Obra ${fm(tMO)} (${totalP?(tMO/totalP*100).toFixed(0):0}%) | Otros ${fm(tOtros)} (${totalP?(tOtros/totalP*100).toFixed(0):0}%)</p>
+</section>
+<section><h2>Gasto por Mes</h2>
+<table><thead><tr><th>Periodo</th><th>Servicios</th><th>Gasto</th><th>Horas</th><th>$/Serv</th></tr></thead>
+<tbody>${mesR}<tr style="background:#f0f4f8;font-weight:700"><td>TOTAL</td><td>${tS}</td><td>${fm(tG)}</td><td>${fn(tH)}h</td><td>${fm(tS?tG/tS:0)}</td></tr></tbody></table>
+</section>
+<section><h2>Top 5 Vehiculos - Mayor Gasto</h2>
+<table><thead><tr><th>#</th><th>Vehiculo</th><th>Gasto</th><th>% Total</th><th>Horas</th></tr></thead><tbody>${t5r}</tbody></table>
+</section>
+<section><h2>Top 5 Vehiculos - Mayor Horas</h2>
+<table><thead><tr><th>#</th><th>Vehiculo</th><th>Horas</th><th>Gasto</th></tr></thead><tbody>${t5h}</tbody></table>
+</section>
+<section><h2>Clasificacion de Servicios</h2>
+<table><thead><tr><th>Clasificacion</th><th>Cantidad</th><th>%</th></tr></thead><tbody>${clR}</tbody></table>
+</section>
+<section><h2>Tipo de Servicio</h2>
+<table><thead><tr><th>Tipo</th><th>Cantidad</th><th>%</th></tr></thead><tbody>${tsR}</tbody></table>
+</section>
+<section><h2>Pareto 80/20 - Vehiculos Vitales</h2>
+<p class="ds">${vitales.length} de ${paretoS.length} vehiculos (${paretoS.length?(vitales.length/paretoS.length*100).toFixed(0):0}%) concentran el 80% del gasto:</p>
+<table><thead><tr><th>#</th><th>Vehiculo</th><th>Gasto</th><th>% Acum</th></tr></thead><tbody>${pR}</tbody></table>
+</section>
+<div class="conc"><h2>Conclusiones y Recomendaciones</h2><ol>
+<li><strong>GASTO:</strong> ${vitales.length} vehiculos = 80% del gasto. Priorizar mantenimiento preventivo.</li>
+<li><strong>EFICIENCIA:</strong> ${aD.toFixed(1)} dias/serv y ${tS?(tH/tS).toFixed(1):'0'} hrs/intervencion. Evaluar disponibilidad de refacciones.</li>
+<li><strong>ATRASOS:</strong> ${tS?(cA/tS*100).toFixed(0):0}% con atraso (${cA} de ${tS}). Implementar alertas tempranas.</li>
+<li><strong>COSTOS:</strong> Refacciones ${fm(tRef)} (${totalP?(tRef/totalP*100).toFixed(0):0}%) | M.Obra ${fm(tMO)} (${totalP?(tMO/totalP*100).toFixed(0):0}%) | Otros ${fm(tOtros)} (${totalP?(tOtros/totalP*100).toFixed(0):0}%).</li>
+</ol></div>
+<div class="ft">Reporte generado desde Dashboard Ejecutivo de Mantenimiento | ${fecha}</div>
+</div>
+<script>
+document.getElementById("emailBtn").onclick=function(){var a=document.createElement("a");a.href="mailto:?subject=${eSub}&body=${eBody}";a.click();};
+document.getElementById("copyBtn").onclick=function(){var r=document.createRange();r.selectNodeContents(document.getElementById("rc"));var s=window.getSelection();s.removeAllRanges();s.addRange(r);document.execCommand("copy");s.removeAllRanges();this.innerHTML="&#10004; Copiado!";var b=this;setTimeout(function(){b.innerHTML="&#128203; Copiar Resumen"},2000);};
+</script></body></html>`;
 
-  subtitle('RESUMEN EJECUTIVO');
-  body(`Este reporte presenta el analisis de mantenimiento de flota basado en ${tS} ordenes de servicio registradas, abarcando ${vU} vehiculos unicos. El gasto total acumulado es de ${fm(tG)}, con un consumo de ${fn(tH)} horas estandar de trabajo.`);
-  y+=2;
-  body(`El promedio de dias por servicio es de ${aD.toFixed(1)} dias, y ${cA} servicios (${tS?(cA/tS*100).toFixed(0):0}%) presentaron atraso respecto a la fecha promesa.`);
-  y+=4;separator();
-
-  subtitle('INDICADORES CLAVE (KPIs)');
-  const kpiTable=[['Indicador','Valor'],['Gasto Total',fm(tG)],['Horas Totales',fn(tH)+' hrs'],['Total Servicios',String(tS)],['Vehiculos Unicos',String(vU)],['Promedio Dias/Servicio',aD.toFixed(1)+' dias'],['Servicios con Atraso',`${cA} (${tS?(cA/tS*100).toFixed(0):0}%)`],['Promedio Gasto/Servicio',fm(tS?tG/tS:0)],['Promedio Hrs/Servicio',(tS?(tH/tS).toFixed(1):'0')+' hrs']];
-  pdf.autoTable?null:null;
-  // Simple table
-  kpiTable.forEach((row,i)=>{
-    checkSpace(5);
-    if(i===0){pdf.setFillColor(37,99,235);pdf.rect(M,y-3.5,CW,5.5,'F');pdf.setTextColor(255,255,255);pdf.setFont('helvetica','bold');}
-    else{pdf.setTextColor(51,65,85);pdf.setFont('helvetica',i%2===0?'normal':'normal');if(i%2===0){pdf.setFillColor(241,245,249);pdf.rect(M,y-3.5,CW,5.5,'F');}}
-    pdf.setFontSize(9);
-    pdf.text(row[0],M+2,y);pdf.text(row[1],M+CW-2,y,{align:'right'});
-    y+=5.5;
-  });
-  y+=4;separator();
-
-  bar.style.width='40%';status.textContent='Analizando gasto por mes...';
-
-  // ── Gasto por Mes ──
-  checkSpace(50);
-  subtitle('GASTO POR MES');
-  body('Desglose mensual del gasto total, servicios realizados y horas consumidas:');y+=2;
-  mP.forEach(p=>{
-    checkSpace(5);
-    const rr=mG[p],g=rr.reduce((s,r)=>s+r.total,0),h=rr.reduce((s,r)=>s+r.tiempo_estandar,0);
-    bullet(`${p}: ${fm(g)} en gasto | ${rr.length} servicios | ${fn(h)} horas | Prom: ${fm(rr.length?g/rr.length:0)}/servicio`);
-  });
-  y+=2;
-
-  body(`Desglose de costos: Refacciones ${fm(tRef)} (${totalP?(tRef/totalP*100).toFixed(0):0}%) | Mano de Obra ${fm(tMO)} | Otros Talleres ${fm(tOtros)}`);
-  y+=4;separator();
-
-  bar.style.width='55%';status.textContent='Top vehiculos...';
-
-  // ── Top Vehiculos ──
-  checkSpace(60);
-  subtitle('TOP 5 VEHICULOS - MAYOR GASTO');
-  body('Los vehiculos con mayor inversion en mantenimiento son:');y+=2;
-  top5.forEach(([v,g],i)=>{checkSpace(5);bullet(`#${i+1} ${v}: ${fm(g)} (${fp(g/totalP)}) del total | ${fn(vH[v]||0)} horas`);});
-  y+=4;
-
-  checkSpace(40);
-  subtitle('TOP 5 VEHICULOS - MAYOR CONSUMO DE HORAS');
-  top5h.forEach(([v,h],i)=>{checkSpace(5);bullet(`#${i+1} ${v}: ${fn(h)} horas | Gasto: ${fm(vG[v]||0)}`);});
-  y+=4;separator();
-
-  bar.style.width='70%';status.textContent='Clasificacion y Pareto...';
-
-  // ── Clasificacion ──
-  checkSpace(30);
-  subtitle('CLASIFICACION DE SERVICIOS');
-  Object.entries(clG).sort((a,b)=>b[1]-a[1]).forEach(([c,n])=>{checkSpace(5);bullet(`${c}: ${n} servicios (${fp(n/tS)})`)});
-  y+=3;
-
-  subtitle('TIPO DE SERVICIO');
-  tsS.forEach(([t,n])=>{checkSpace(5);bullet(`${t}: ${n} servicios (${fp(n/tS)})`)});
-  y+=4;separator();
-
-  // ── Pareto ──
-  checkSpace(50);
-  subtitle('ANALISIS PARETO 80/20 - GASTO');
-  body(`Segun el principio de Pareto, ${vitales.length} de ${paretoS.length} vehiculos (${(vitales.length/paretoS.length*100).toFixed(0)}%) concentran el 80% del gasto total. Estos vehiculos "vitales" son:`);y+=2;
-  vitales.forEach(([v,g],i)=>{checkSpace(5);bullet(`${v}: ${fm(g)}`);});
-  y+=2;
-  body(`Recomendacion: Enfocar esfuerzos de mantenimiento preventivo en estos ${vitales.length} vehiculos para reducir el gasto correctivo.`);
-  y+=4;separator();
-
-  // ── CONCLUSIONES Y RECOMENDACIONES ──
-  checkSpace(60);
-  subtitle('CONCLUSIONES Y RECOMENDACIONES');
-  body('1. CONTROL DE GASTO: Los '+vitales.length+' vehiculos que representan el 80% del gasto total deben ser priorizados en programas de mantenimiento preventivo para reducir intervenciones correctivas costosas.');
-  y+=2;
-  body('2. EFICIENCIA OPERATIVA: Con un promedio de '+aD.toFixed(1)+' dias por servicio y '+(tS?(tH/tS).toFixed(1):'0')+' horas por intervencion, se recomienda evaluar la disponibilidad de refacciones y la capacidad del taller.');
-  y+=2;
-  body('3. ATRASOS: El '+(tS?(cA/tS*100).toFixed(0):0)+'% de los servicios presentaron atraso ('+cA+' de '+tS+'). Se sugiere implementar un sistema de alertas tempranas y mejor planificacion de recursos.');
-  y+=2;
-  body('4. COMPOSICION DEL GASTO: Refacciones '+fm(tRef)+' ('+(totalP?(tRef/totalP*100).toFixed(0):0)+'%) | Mano de Obra '+fm(tMO)+' ('+(totalP?(tMO/totalP*100).toFixed(0):0)+'%) | Otros '+fm(tOtros)+' ('+(totalP?(tOtros/totalP*100).toFixed(0):0)+'%). Revisar proveedores si refacciones superan el 60%.');
-  y+=4;separator();
-
-  // ── Capture charts as images ──
-  bar.style.width='80%';status.textContent='Capturando graficos...';
-  await new Promise(r=>setTimeout(r,100));
-
-  const chartIds=['cGastoMes','cClasif','cTop10','cTop10H','cHorasMes','cTipoServ','cPareto','cParetoH','cDesglose'];
-  const chartTitles=['Gasto por Mes','Clasificacion de Servicios','Top 10 Vehiculos por Gasto','Top 10 Vehiculos por Horas','Consumo de Horas por Mes','Servicios por Tipo','Pareto de Gasto','Pareto de Horas','Desglose de Costos'];
-
-  for(let i=0;i<chartIds.length;i++){
-    bar.style.width=`${80+i*2}%`;status.textContent=`Capturando: ${chartTitles[i]}...`;
-    const canvas=document.getElementById(chartIds[i]);
-    if(!canvas)continue;
-    try{
-      addPage();
-      subtitle(chartTitles[i].toUpperCase());y+=2;
-      const imgData=canvas.toDataURL('image/png',0.92);
-      const ratio=canvas.width/canvas.height;
-      let imgW=CW,imgH=CW/ratio;
-      if(imgH>H-y-20){imgH=H-y-20;imgW=imgH*ratio;}
-      pdf.addImage(imgData,'PNG',M,y,imgW,imgH);
-      y+=imgH+5;
-    }catch(e){console.warn('Chart capture failed:',chartIds[i],e);}
-  }
-
-  bar.style.width='98%';status.textContent='Guardando PDF...';
-  await new Promise(r=>setTimeout(r,200));
-
-  const fileName=`Reporte_Mantenimiento_${new Date().toISOString().slice(0,10)}.pdf`;
-  pdf.save(fileName);
-
-  bar.style.width='100%';status.textContent='PDF descargado exitosamente!';
-  document.getElementById('pdfTitle').textContent='Reporte PDF Generado';
-  document.getElementById('pdfDesc').textContent='El archivo '+fileName+' se ha descargado. Puedes enviarlo por correo.';
-  document.getElementById('pdfActions').style.display='flex';
-}
-
-function emailPDF(){
-  const s=encodeURIComponent('Reporte Mantenimiento Flota - '+new Date().toLocaleDateString('es-MX'));
-  const fd=gF(),tG=fd.reduce((a,r)=>a+r.total,0),vU=new Set(fd.map(r=>r.equipo)).size;
-  const b=encodeURIComponent('Adjunto el reporte PDF del Dashboard de Mantenimiento de Flota.\n\nFiltros aplicados: '+getFilterDesc()+'\n\nResumen rapido:\n- Registros: '+fd.length+'\n- Vehiculos unicos: '+vU+'\n- Gasto Total: '+fm(tG)+'\n\nFavor de revisar el archivo adjunto.');
-  const a=document.createElement('a');a.href='mailto:?subject='+s+'&body='+b;a.click();
-}
-function closePDFOverlay(){
-  document.getElementById('pdfOverlay').classList.remove('show');
-  document.getElementById('pdfActions').style.display='none';
-  document.getElementById('pdfTitle').textContent='Generando Reporte PDF';
-  document.getElementById('pdfDesc').textContent='Capturando graficos y datos del dashboard...';
-  document.getElementById('pdfBar').style.width='0%';
+  const w=window.open('','_blank');
+  if(w){w.document.write(html);w.document.close();}
+  else{alert('Permite ventanas emergentes para ver el resumen.');}
 }
 
 // ── INIT ──
