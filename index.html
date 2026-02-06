@@ -125,25 +125,25 @@
   <div class="kpi-grid" id="kpiGrid"></div>
 
   <div class="grid g21">
-    <div class="card"><div class="ch"><div><div class="ct">Gasto por Mes</div><div class="cs">Tendencia mensual + horas</div></div><div class="cb" style="background:var(--primary-light);color:var(--primary)" id="bGasto">--</div></div><canvas id="cGastoMes" height="220"></canvas></div>
-    <div class="card"><div class="ch"><div><div class="ct">Clasificacion</div><div class="cs">Correctivo vs Preventivo</div></div></div><div class="dw"><canvas id="cClasif" height="220"></canvas><div class="dc"><div class="dcv" id="dClV">--</div><div class="dcl">Servicios</div></div></div></div>
+    <div class="card"><div class="ch"><div><div class="ct">Gasto por Mes</div><div class="cs">Tendencia mensual + horas</div></div><div class="cb" style="background:var(--primary-light);color:var(--primary)" id="bGasto">--</div></div><canvas id="cGastoMes" height="160"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Clasificacion</div><div class="cs">Correctivo vs Preventivo</div></div></div><div class="dw"><canvas id="cClasif" height="160"></canvas><div class="dc"><div class="dcv" id="dClV">--</div><div class="dcl">Servicios</div></div></div></div>
   </div>
 
   <div class="stitle">Analisis por Vehiculo</div>
   <div class="grid g2">
-    <div class="card"><div class="ch"><div><div class="ct">Top 10 Vehiculos - Mayor Gasto</div><div class="cs">Mayor inversion en mantenimiento</div></div></div><canvas id="cTop10" height="220"></canvas></div>
-    <div class="card"><div class="ch"><div><div class="ct">Top 10 Vehiculos - Horas Consumidas</div><div class="cs">Mayor consumo de tiempo</div></div></div><canvas id="cTop10H" height="220"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Top 10 Vehiculos - Mayor Gasto</div><div class="cs">Mayor inversion en mantenimiento</div></div></div><canvas id="cTop10" height="160"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Top 10 Vehiculos - Horas Consumidas</div><div class="cs">Mayor consumo de tiempo</div></div></div><canvas id="cTop10H" height="160"></canvas></div>
   </div>
 
   <div class="stitle">Tendencias y Comparativos</div>
   <div class="grid g2">
-    <div class="card"><div class="ch"><div><div class="ct">Consumo de Horas por Mes</div><div class="cs">Horas y promedio por servicio</div></div></div><canvas id="cHorasMes" height="220"></canvas></div>
-    <div class="card"><div class="ch"><div><div class="ct">Servicios por Tipo</div><div class="cs">Distribucion por tipo</div></div></div><canvas id="cTipoServ" height="220"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Consumo de Horas por Mes</div><div class="cs">Horas y promedio por servicio</div></div></div><canvas id="cHorasMes" height="160"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Servicios por Tipo</div><div class="cs">Distribucion por tipo</div></div></div><canvas id="cTipoServ" height="160"></canvas></div>
   </div>
 
   <div class="grid g21">
-    <div class="card"><div class="ch"><div><div class="ct">Comparativo Mensual</div><div class="cs">Gasto, horas y servicios</div></div></div><div style="overflow-x:auto"><table class="tbl" id="tComp"><thead><tr><th>Periodo</th><th>Servicios</th><th>Gasto Total</th><th>Horas</th><th>$/Serv</th><th>Hrs/Serv</th></tr></thead><tbody></tbody></table></div></div>
-    <div class="card"><div class="ch"><div><div class="ct">Tipo de Equipo</div><div class="cs">Distribucion de flota</div></div></div><div class="dw"><canvas id="cTipoEq" height="220"></canvas><div class="dc"><div class="dcv" id="dTeV">--</div><div class="dcl">Equipos</div></div></div></div>
+    <div class="card"><div class="ch"><div><div class="ct">Comparativo Mensual</div><div class="cs">Gasto, horas y servicios</div></div></div><div style="overflow-x:auto;max-height:280px;overflow-y:auto"><table class="tbl" id="tComp"><thead><tr><th>Periodo</th><th>Servicios</th><th>Gasto Total</th><th>Horas</th><th>$/Serv</th><th>Hrs/Serv</th></tr></thead><tbody></tbody></table></div></div>
+    <div class="card"><div class="ch"><div><div class="ct">Tipo de Equipo</div><div class="cs">Distribucion de flota</div></div></div><div class="dw"><canvas id="cTipoEq" height="160"></canvas><div class="dc"><div class="dcv" id="dTeV">--</div><div class="dcl">Equipos</div></div></div></div>
   </div>
 
   <div class="stitle">Analisis de Pareto 80/20</div>
@@ -152,8 +152,8 @@
     <div class="card"><div class="ch"><div><div class="ct">Detalle Pareto</div><div class="cs">Acumulado y zona 80/20</div></div></div><div style="overflow-x:auto;max-height:340px;overflow-y:auto"><table class="tbl" id="tPareto"><thead><tr><th>#</th><th>Vehiculo</th><th>Gasto</th><th>% Acum.</th><th>Zona</th></tr></thead><tbody></tbody></table></div></div>
   </div>
   <div class="grid g2">
-    <div class="card"><div class="ch"><div><div class="ct">Pareto de Horas</div><div class="cs">20% que consume 80% horas</div></div></div><canvas id="cParetoH" height="220"></canvas></div>
-    <div class="card"><div class="ch"><div><div class="ct">Desglose de Costos</div><div class="cs">Refacciones vs Mano Obra vs Otros</div></div></div><canvas id="cDesglose" height="220"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Pareto de Horas</div><div class="cs">20% que consume 80% horas</div></div></div><canvas id="cParetoH" height="160"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Desglose de Costos</div><div class="cs">Refacciones vs Mano Obra vs Otros</div></div></div><canvas id="cDesglose" height="160"></canvas></div>
   </div>
   <footer>Dashboard Ejecutivo de Mantenimiento &bull; Datos desde OneDrive &bull; Click Actualizar para refrescar<br><span id="fTs"></span></footer>
 </div>
