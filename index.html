@@ -46,13 +46,13 @@
   .conn-banner.error{background:linear-gradient(90deg,#fef2f2,#fff1f2);border-color:#fca5a5;color:#991b1b}
   .conn-banner.loading{background:linear-gradient(90deg,#fffbeb,#fef9c3);border-color:#fde047;color:#854d0e}
 
-  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
-  .kpi-card{background:var(--card);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);display:flex;align-items:flex-start;gap:12px;transition:transform .2s}
-  .kpi-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
-  .kpi-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-  .kpi-label{font-size:10px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.4px}
-  .kpi-value{font-size:20px;font-weight:800;margin:2px 0;letter-spacing:-.5px;line-height:1.1}
-  .kpi-sub{font-size:10px;font-weight:600;color:var(--text-m)}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+  .kpi-card{background:var(--card);border-radius:16px;padding:20px 22px;box-shadow:var(--shadow);display:flex;align-items:flex-start;gap:16px;transition:transform .2s}
+  .kpi-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+  .kpi-icon{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+  .kpi-label{font-size:11px;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.5px}
+  .kpi-value{font-size:28px;font-weight:800;margin:4px 0;letter-spacing:-.8px;line-height:1.1}
+  .kpi-sub{font-size:11px;font-weight:600;color:var(--text-m)}
 
   .grid{display:grid;gap:14px;margin-bottom:18px}
   .g2{grid-template-columns:1fr 1fr}.g21{grid-template-columns:5fr 3fr}
@@ -78,7 +78,7 @@
   .stitle::before{content:'';width:4px;height:20px;background:var(--primary);border-radius:2px}
 
   @media(max-width:1100px){.g2,.g21{grid-template-columns:1fr}.main{padding:14px}.header,.filters-bar{padding-left:14px;padding-right:14px}}
-  @media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.kpi-value{font-size:16px}}
+  @media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.kpi-value{font-size:22px}.kpi-icon{width:44px;height:44px;font-size:22px}}
 
   .loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s;gap:14px}
   .loading-overlay.hide{opacity:0;pointer-events:none}
@@ -125,35 +125,35 @@
   <div class="kpi-grid" id="kpiGrid"></div>
 
   <div class="grid g21">
-    <div class="card"><div class="ch"><div><div class="ct">Gasto por Mes</div><div class="cs">Tendencia mensual + horas</div></div><div class="cb" style="background:var(--primary-light);color:var(--primary)" id="bGasto">--</div></div><canvas id="cGastoMes" height="280"></canvas></div>
-    <div class="card"><div class="ch"><div><div class="ct">Clasificacion</div><div class="cs">Correctivo vs Preventivo</div></div></div><div class="dw"><canvas id="cClasif" height="280"></canvas><div class="dc"><div class="dcv" id="dClV">--</div><div class="dcl">Servicios</div></div></div></div>
+    <div class="card"><div class="ch"><div><div class="ct">Gasto por Mes</div><div class="cs">Tendencia mensual + horas</div></div><div class="cb" style="background:var(--primary-light);color:var(--primary)" id="bGasto">--</div></div><canvas id="cGastoMes" height="220"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Clasificacion</div><div class="cs">Correctivo vs Preventivo</div></div></div><div class="dw"><canvas id="cClasif" height="220"></canvas><div class="dc"><div class="dcv" id="dClV">--</div><div class="dcl">Servicios</div></div></div></div>
   </div>
 
   <div class="stitle">Analisis por Vehiculo</div>
   <div class="grid g2">
-    <div class="card"><div class="ch"><div><div class="ct">Top 10 Vehiculos - Mayor Gasto</div><div class="cs">Mayor inversion en mantenimiento</div></div></div><canvas id="cTop10" height="280"></canvas></div>
-    <div class="card"><div class="ch"><div><div class="ct">Top 10 Vehiculos - Horas Consumidas</div><div class="cs">Mayor consumo de tiempo</div></div></div><canvas id="cTop10H" height="280"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Top 10 Vehiculos - Mayor Gasto</div><div class="cs">Mayor inversion en mantenimiento</div></div></div><canvas id="cTop10" height="220"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Top 10 Vehiculos - Horas Consumidas</div><div class="cs">Mayor consumo de tiempo</div></div></div><canvas id="cTop10H" height="220"></canvas></div>
   </div>
 
   <div class="stitle">Tendencias y Comparativos</div>
   <div class="grid g2">
-    <div class="card"><div class="ch"><div><div class="ct">Consumo de Horas por Mes</div><div class="cs">Horas y promedio por servicio</div></div></div><canvas id="cHorasMes" height="280"></canvas></div>
-    <div class="card"><div class="ch"><div><div class="ct">Servicios por Tipo</div><div class="cs">Distribucion por tipo</div></div></div><canvas id="cTipoServ" height="280"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Consumo de Horas por Mes</div><div class="cs">Horas y promedio por servicio</div></div></div><canvas id="cHorasMes" height="220"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Servicios por Tipo</div><div class="cs">Distribucion por tipo</div></div></div><canvas id="cTipoServ" height="220"></canvas></div>
   </div>
 
   <div class="grid g21">
     <div class="card"><div class="ch"><div><div class="ct">Comparativo Mensual</div><div class="cs">Gasto, horas y servicios</div></div></div><div style="overflow-x:auto"><table class="tbl" id="tComp"><thead><tr><th>Periodo</th><th>Servicios</th><th>Gasto Total</th><th>Horas</th><th>$/Serv</th><th>Hrs/Serv</th></tr></thead><tbody></tbody></table></div></div>
-    <div class="card"><div class="ch"><div><div class="ct">Tipo de Equipo</div><div class="cs">Distribucion de flota</div></div></div><div class="dw"><canvas id="cTipoEq" height="280"></canvas><div class="dc"><div class="dcv" id="dTeV">--</div><div class="dcl">Equipos</div></div></div></div>
+    <div class="card"><div class="ch"><div><div class="ct">Tipo de Equipo</div><div class="cs">Distribucion de flota</div></div></div><div class="dw"><canvas id="cTipoEq" height="220"></canvas><div class="dc"><div class="dcv" id="dTeV">--</div><div class="dcl">Equipos</div></div></div></div>
   </div>
 
   <div class="stitle">Analisis de Pareto 80/20</div>
   <div class="grid g2">
-    <div class="card"><div class="ch"><div><div class="ct">Pareto de Gasto</div><div class="cs">20% que genera 80% del gasto</div></div></div><canvas id="cPareto" height="280"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Pareto de Gasto</div><div class="cs">20% que genera 80% del gasto</div></div></div><canvas id="cPareto" height="220"></canvas></div>
     <div class="card"><div class="ch"><div><div class="ct">Detalle Pareto</div><div class="cs">Acumulado y zona 80/20</div></div></div><div style="overflow-x:auto;max-height:340px;overflow-y:auto"><table class="tbl" id="tPareto"><thead><tr><th>#</th><th>Vehiculo</th><th>Gasto</th><th>% Acum.</th><th>Zona</th></tr></thead><tbody></tbody></table></div></div>
   </div>
   <div class="grid g2">
-    <div class="card"><div class="ch"><div><div class="ct">Pareto de Horas</div><div class="cs">20% que consume 80% horas</div></div></div><canvas id="cParetoH" height="280"></canvas></div>
-    <div class="card"><div class="ch"><div><div class="ct">Desglose de Costos</div><div class="cs">Refacciones vs Mano Obra vs Otros</div></div></div><canvas id="cDesglose" height="280"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Pareto de Horas</div><div class="cs">20% que consume 80% horas</div></div></div><canvas id="cParetoH" height="220"></canvas></div>
+    <div class="card"><div class="ch"><div><div class="ct">Desglose de Costos</div><div class="cs">Refacciones vs Mano Obra vs Otros</div></div></div><canvas id="cDesglose" height="220"></canvas></div>
   </div>
   <footer>Dashboard Ejecutivo de Mantenimiento &bull; Datos desde OneDrive &bull; Click Actualizar para refrescar<br><span id="fTs"></span></footer>
 </div>
