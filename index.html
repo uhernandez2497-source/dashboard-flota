@@ -327,26 +327,7 @@ function generateSummary(){
   let pR='';acP=0;vitales.forEach(([v,g],i)=>{acP+=g;pR+=`<tr><td>#${i+1}</td><td>${v}</td><td>${fm(g)}</td><td>${fp(totalP?acP/totalP:0)}</td></tr>`;});
 
   const eSub=encodeURIComponent('Reporte Mantenimiento Flota - '+new Date().toLocaleDateString('es-MX')).replace(/'/g,'%27');
-  const eBody=encodeURIComponent('REPORTE MANTENIMIENTO DE FLOTA
-'+fecha+'
-
-Filtros: Ano '+fA+' | Mes '+fMe+' | Tipo '+fT+' | Clasif '+fCl+'
-Registros: '+d.length+' de '+RAW.length+'
-
-INDICADORES:
-- Gasto Total: '+fm(tG)+'
-- Horas: '+fn(tH)+'h
-- Servicios: '+tS+'
-- Vehiculos: '+vU+'
-- Atrasos: '+cA+' ('+((tS?(cA/tS*100).toFixed(0):0))+'%)
-
-TOP 5 GASTO:
-'+top5.map(([v,g],i)=>(i+1)+'. '+v+': '+fm(g)).join('
-')+'
-
-CONCLUSIONES:
-- '+vitales.length+' vehiculos = 80% del gasto
-- Refacciones: '+fm(tRef)+' | M.Obra: '+fm(tMO)+' | Otros: '+fm(tOtros)).replace(/'/g,'%27');
+  const eBody=encodeURIComponent('REPORTE MANTENIMIENTO DE FLOTA\n'+fecha+'\n\nFiltros: Ano '+fA+' | Mes '+fMe+' | Tipo '+fT+' | Clasif '+fCl+'\nRegistros: '+d.length+' de '+RAW.length+'\n\nINDICADORES:\n- Gasto Total: '+fm(tG)+'\n- Horas: '+fn(tH)+'h\n- Servicios: '+tS+'\n- Vehiculos: '+vU+'\n- Atrasos: '+cA+' ('+((tS?(cA/tS*100).toFixed(0):0))+'%)\n\nTOP 5 GASTO:\n'+top5.map(([v,g],i)=>(i+1)+'. '+v+': '+fm(g)).join('\n')+'\n\nCONCLUSIONES:\n- '+vitales.length+' vehiculos = 80% del gasto\n- Refacciones: '+fm(tRef)+' | M.Obra: '+fm(tMO)+' | Otros: '+fm(tOtros)).replace(/'/g,'%27');
 
   const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Resumen Mantenimiento</title>
 <style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
