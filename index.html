@@ -411,7 +411,7 @@ td{padding:7px 10px;border-bottom:1px solid #f1f5f9}tr:hover{background:#f8fafc}
 <script>
 document.getElementById("emailBtn").onclick=function(){var a=document.createElement("a");a.href="mailto:?subject=${eSub}&body=${eBody}";a.click();};
 document.getElementById("copyBtn").onclick=function(){var r=document.createRange();r.selectNodeContents(document.getElementById("rc"));var s=window.getSelection();s.removeAllRanges();s.addRange(r);document.execCommand("copy");s.removeAllRanges();this.innerHTML="&#10004; Copiado!";var b=this;setTimeout(function(){b.innerHTML="&#128203; Copiar Resumen"},2000);};
-</script></body></html>`;
+</scr`+`ipt></body></html>`;
 
   const w=window.open('','_blank');
   if(w){w.document.write(html);w.document.close();}
