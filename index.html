@@ -210,16 +210,54 @@ async function loadFromJSON(){
   }catch(e){console.warn('loadFromJSON:',e.message);return false;}
 }
 
-// ── REFRESH: data.json (actualizado por GitHub Actions) ──
+// ── REFRESH: Actualizar desde OneDrive vía API ──
 async function refreshData(){
-  // Priorizar data.json (actualizado automáticamente)
-  if(await loadFromJSON()){
-    console.log('[Dashboard] Datos refrescados desde data.json');
-    return;
+  const btn = document.getElementById('refreshBtn');
+  const originalText = btn.innerHTML;
+
+  try {
+    // Mostrar estado de carga
+    setSt('loading', 'Solicitando actualización desde OneDrive...');
+    btn.disabled = true;
+    btn.classList.add('spinning');
+
+    // Llamar a la función serverless para ejecutar el workflow
+    const API_URL = 'https://dashboard-flota.vercel.app/api/trigger-update';
+
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      setSt('loading', 'Descargando datos de OneDrive... (30-60s)');
+
+      // Esperar 45 segundos para que el workflow descargue y actualice
+      await new Promise(resolve => setTimeout(resolve, 45000));
+
+      // Recargar datos actualizados
+      setSt('loading', 'Cargando datos actualizados...');
+      await loadFromJSON();
+
+      setSt('ok', 'Datos actualizados desde OneDrive exitosamente');
+    } else {
+      throw new Error(result.error || 'Error al actualizar');
+    }
+
+  } catch (error) {
+    console.error('Error al actualizar:', error);
+    setSt('error', 'Error al actualizar: ' + error.message);
+
+    // Intentar cargar datos existentes como fallback
+    await loadFromJSON();
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('spinning');
   }
-  // Fallback a OneDrive solo si data.json no está disponible
-  console.warn('[Dashboard] data.json no disponible, intentando OneDrive...');
-  await loadFromOneDrive();
 }
 
 // ── FILTERS ──

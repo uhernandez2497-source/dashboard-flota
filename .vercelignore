@@ -1,0 +1,8 @@
+# Archivos que Vercel no debe incluir en el deployment
+README.md
+DEPLOYMENT.md
+actualizar_datos.py
+.git
+.github
+*.pyc
+__pycache__
