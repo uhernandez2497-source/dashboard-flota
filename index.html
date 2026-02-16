@@ -90,13 +90,13 @@
 </style>
 </head>
 <body>
-<div class="loading-overlay" id="loading"><div class="spinner"></div><div class="ltxt" id="loadingText">Conectando con OneDrive...</div></div>
+<div class="loading-overlay" id="loading"><div class="spinner"></div><div class="ltxt" id="loadingText">Cargando datos del dashboard...</div></div>
 
 
 <div class="header">
   <div class="header-left">
     <div class="header-logo">&#9881;</div>
-    <div><h1>Dashboard Ejecutivo - Mantenimiento</h1><p id="headerSub">Conectado a OneDrive</p></div>
+    <div><h1>Dashboard Ejecutivo - Mantenimiento</h1><p id="headerSub">Actualización automática con GitHub Actions</p></div>
   </div>
   <div class="header-right">
     <div class="hbadge"><span class="status-dot loading" id="sDot"></span><span id="sTxt">Conectando...</span></div>
@@ -121,7 +121,7 @@
 </div>
 
 <div class="main" id="dashContent">
-  <div class="conn-banner loading" id="cBanner"><span style="font-size:16px">&#9889;</span><div><strong>OneDrive</strong> &mdash; <span id="cMsg">Conectando...</span></div></div>
+  <div class="conn-banner loading" id="cBanner"><span style="font-size:16px">&#9889;</span><div><strong>Dashboard</strong> &mdash; <span id="cMsg">Cargando datos...</span></div></div>
   <div class="kpi-grid" id="kpiGrid"></div>
 
   <div class="grid g21">
@@ -155,7 +155,7 @@
     <div class="card"><div class="ch"><div><div class="ct">Pareto de Horas</div><div class="cs">20% que consume 80% horas</div></div></div><canvas id="cParetoH" height="160"></canvas></div>
     <div class="card"><div class="ch"><div><div class="ct">Desglose de Costos</div><div class="cs">Refacciones vs Mano Obra vs Otros</div></div></div><canvas id="cDesglose" height="160"></canvas></div>
   </div>
-  <footer>Dashboard Ejecutivo de Mantenimiento &bull; Datos desde OneDrive &bull; Click Actualizar para refrescar<br><span id="fTs"></span></footer>
+  <footer>Dashboard Ejecutivo de Mantenimiento &bull; Datos actualizados automáticamente por GitHub Actions &bull; Click Actualizar para refrescar<br><span id="fTs"></span></footer>
 </div>
 
 <script>
@@ -210,10 +210,16 @@ async function loadFromJSON(){
   }catch(e){console.warn('loadFromJSON:',e.message);return false;}
 }
 
-// ── REFRESH: OneDrive -> data.json fallback ──
+// ── REFRESH: data.json (actualizado por GitHub Actions) ──
 async function refreshData(){
+  // Priorizar data.json (actualizado automáticamente)
+  if(await loadFromJSON()){
+    console.log('[Dashboard] Datos refrescados desde data.json');
+    return;
+  }
+  // Fallback a OneDrive solo si data.json no está disponible
+  console.warn('[Dashboard] data.json no disponible, intentando OneDrive...');
   await loadFromOneDrive();
-  if(!RAW.length){await loadFromJSON();}
 }
 
 // ── FILTERS ──
@@ -421,9 +427,9 @@ document.getElementById("copyBtn").onclick=function(){var r=document.createRange
 // ── INIT ──
 document.addEventListener('DOMContentLoaded',async()=>{
   console.log('[Dashboard] Iniciando carga de datos...');
-  // 1. data.json local (PRIORIDAD, sin CORS, siempre funciona en GitHub Pages)
+  // 1. data.json local (PRIORIDAD - Actualizado por GitHub Actions)
   if(await loadFromJSON()){
-    console.log('[Dashboard] Datos cargados desde data.json');
+    console.log('[Dashboard] Datos cargados desde data.json (GitHub Actions)');
     setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);return;
   }
   console.warn('[Dashboard] data.json fallo, intentando cache...');
@@ -434,15 +440,13 @@ document.addEventListener('DOMContentLoaded',async()=>{
     console.log('[Dashboard] Usando cache local:',RAW.length,'registros');
     setSt('ok',RAW.length+' registros (cache) | '+ts);
     document.getElementById('bUpd').textContent=ts+' (cache)';
-    document.getElementById('fTs').textContent='Datos en cache desde: '+ts;
+    document.getElementById('fTs').textContent='Datos en cache | '+ts;
     setupF();updateAll();
     setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);return;
     }catch(e){console.warn('[Dashboard] Cache corrupto:',e.message);}
   }
-  // 3. OneDrive via proxies (ultimo recurso)
-  console.warn('[Dashboard] Intentando OneDrive como ultimo recurso...');
-  await loadFromOneDrive();
-  // 4. Siempre ocultar overlay, incluso en error
+  // 3. Sin datos disponibles
+  setSt('error','No hay datos disponibles. Verifica que data.json exista.');
   setTimeout(()=>document.getElementById('loading').classList.add('hide'),500);
 });
 </script>

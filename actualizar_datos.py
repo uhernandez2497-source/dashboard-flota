@@ -141,6 +141,13 @@ def git_push():
     """Commit y push a GitHub."""
     log('Subiendo a GitHub...')
     try:
+        # Configurar git si estamos en GitHub Actions
+        if os.getenv('GITHUB_ACTIONS'):
+            subprocess.run(['git', 'config', 'user.name', os.getenv('GIT_AUTHOR_NAME', 'GitHub Actions')],
+                         cwd=SCRIPT_DIR, check=True, capture_output=True)
+            subprocess.run(['git', 'config', 'user.email', os.getenv('GIT_AUTHOR_EMAIL', 'actions@github.com')],
+                         cwd=SCRIPT_DIR, check=True, capture_output=True)
+
         subprocess.run(['git', 'add', 'data.json'], cwd=SCRIPT_DIR, check=True, capture_output=True)
         ts = datetime.now().strftime('%Y-%m-%d %H:%M')
         result = subprocess.run(
@@ -154,15 +161,22 @@ def git_push():
             log(f'ERROR en commit: {result.stderr}')
             return False
 
+        # Determinar la rama principal (puede ser master o main)
+        branch_result = subprocess.run(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            cwd=SCRIPT_DIR, capture_output=True, text=True
+        )
+        branch = branch_result.stdout.strip() if branch_result.returncode == 0 else 'master'
+
         result = subprocess.run(
-            ['git', 'push', 'origin', 'master'],
+            ['git', 'push', 'origin', branch],
             cwd=SCRIPT_DIR, capture_output=True, text=True
         )
         if result.returncode != 0:
             log(f'ERROR en push: {result.stderr}')
             return False
 
-        log('Push exitoso a GitHub Pages')
+        log(f'Push exitoso a GitHub Pages (rama: {branch})')
         return True
     except FileNotFoundError:
         log('ERROR: git no encontrado en PATH')

@@ -1,0 +1,47 @@
+name: Actualizar Datos del Dashboard
+
+on:
+  schedule:
+    # Ejecutar todos los días a las 6:00 AM (hora UTC)
+    # Ajusta según tu zona horaria (UTC-6 = 12:00 PM hora México)
+    - cron: '0 6 * * *'
+
+  workflow_dispatch:  # Permite ejecutar manualmente desde GitHub
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          pip install openpyxl
+
+      - name: Ejecutar script de actualización
+        run: |
+          python actualizar_datos.py
+        env:
+          GIT_AUTHOR_NAME: 'GitHub Actions Bot'
+          GIT_AUTHOR_EMAIL: 'actions@github.com'
+          GIT_COMMITTER_NAME: 'GitHub Actions Bot'
+          GIT_COMMITTER_EMAIL: 'actions@github.com'
+
+      - name: Verificar estado
+        run: |
+          if [ -f data.json ]; then
+            echo "✅ data.json generado correctamente"
+            ls -lh data.json
+          else
+            echo "❌ Error: data.json no fue generado"
+            exit 1
+          fi
