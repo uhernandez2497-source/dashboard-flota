@@ -27,6 +27,33 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(SCRIPT_DIR, 'data.json')
 EXCEL_TEMP = os.path.join(SCRIPT_DIR, '_temp_dashboard.xlsx')
 
+# Mapeo de nombre de encabezado -> clave interna
+# El script busca estas columnas por nombre, no por posicion fija
+HEADER_MAP = {
+    'Equipo': 'equipo',
+    'Tipo Equipo': 'tipo_equipo',
+    'Marca': 'marca',
+    'Modelo': 'modelo',
+    'Razon Reparacion': 'razon',
+    'Fecha Terminacion': 'fecha_terminacion',
+    'Precio Refaccion': 'refaccion',
+    'Precio Mano Obra': 'mano_obra',
+    'Precio Otros Talleres': 'otros',
+    'Total': 'total',
+    'Dias Real': 'dias_real',
+    'Dias Atraso': 'dias_atraso',
+    'Nodo': 'nodo',
+    'Region': 'region',
+    'Clasificacion De La Orden': 'clasificacion',
+    'Tipo de Servicio': 'tipo_servicio',
+    'Tiempo estandar': 'tiempo',
+    'Familia': 'familia',
+    'Grupo Mantenimiento': 'grupo',
+}
+
+# Columnas obligatorias (el script falla si no las encuentra)
+REQUIRED_COLS = ['equipo', 'fecha_terminacion', 'total']
+
 # Mapeo de numero de mes a nombre en español (el dashboard espera español minuscula)
 MES_ESPANOL = {
     1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril',
@@ -34,22 +61,7 @@ MES_ESPANOL = {
     9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'
 }
 
-# Mapeo de mes en ingles a español (fallback si col 70 tiene nombres en ingles)
-MES_EN_TO_ES = {
-    'january': 'enero', 'february': 'febrero', 'march': 'marzo',
-    'april': 'abril', 'may': 'mayo', 'june': 'junio',
-    'july': 'julio', 'august': 'agosto', 'september': 'septiembre',
-    'october': 'octubre', 'november': 'noviembre', 'december': 'diciembre'
-}
-
-# Columnas del Excel (0-indexed)
-COL = {
-    'equipo': 4, 'tipo_equipo': 8, 'marca': 10, 'modelo': 11,
-    'razon': 13, 'fecha_terminacion': 18, 'refaccion': 32, 'mano_obra': 33,
-    'otros': 34, 'total': 35, 'dias_real': 40, 'dias_atraso': 41, 'nodo': 45,
-    'region': 46, 'clasificacion': 63, 'tipo_servicio': 64,
-    'tiempo': 68, 'familia': 69, 'mes': 70, 'ano': 71, 'grupo': 7
-}
+MESES_VALIDOS = set(MES_ESPANOL.values())
 
 
 def log(msg):
@@ -77,6 +89,36 @@ def download_excel():
         return False
 
 
+def detectar_columnas(header):
+    """Detecta la posicion de cada columna buscando por nombre de encabezado.
+    Esto hace el script resistente a cambios en el orden de columnas del Excel."""
+    col = {}
+    header_norm = {}
+    for i, h in enumerate(header):
+        if h is not None:
+            header_norm[str(h).strip()] = i
+
+    for header_name, key in HEADER_MAP.items():
+        if header_name in header_norm:
+            col[key] = header_norm[header_name]
+
+    # Verificar columnas obligatorias
+    missing = [k for k in REQUIRED_COLS if k not in col]
+    if missing:
+        log(f'  ADVERTENCIA: Columnas no encontradas en encabezado: {missing}')
+        log(f'  Encabezados disponibles: {list(header_norm.keys())}')
+        return None
+
+    found = len(col)
+    total = len(HEADER_MAP)
+    log(f'  Columnas detectadas: {found}/{total}')
+    if found < total:
+        not_found = [h for h, k in HEADER_MAP.items() if k not in col]
+        log(f'  No encontradas (opcionales): {not_found}')
+
+    return col
+
+
 def parse_excel():
     """Parsea el Excel y genera la lista de registros."""
     try:
@@ -98,6 +140,16 @@ def parse_excel():
     wb.close()
     log(f'  {len(rows)} filas leidas (incluye encabezado)')
 
+    if not rows:
+        log('  ERROR: Excel vacio')
+        return []
+
+    # Detectar columnas por nombre de encabezado
+    col = detectar_columnas(rows[0])
+    if col is None:
+        log('  ERROR: No se pudieron detectar las columnas obligatorias')
+        return []
+
     def safe_float(v):
         try:
             return float(v) if v is not None else 0
@@ -107,12 +159,18 @@ def parse_excel():
     def safe_str(v):
         return str(v).strip() if v is not None else ''
 
-    def extraer_mes_ano(row):
-        """Extrae mes (español) y año desde Fecha Terminacion (col 18).
-        Fallback: usa cols 70/71 si la fecha no esta disponible."""
-        fecha = row[COL['fecha_terminacion']] if len(row) > COL['fecha_terminacion'] else None
+    def get(row, key, default=None):
+        """Obtiene valor de una columna por clave, o default si no existe."""
+        idx = col.get(key)
+        if idx is None or idx >= len(row):
+            return default
+        return row[idx]
 
-        # Intentar extraer de la fecha de terminacion (fuente confiable)
+    def extraer_mes_ano(row):
+        """Extrae mes (español) y año desde Fecha Terminacion.
+        Fuente primaria y confiable: la fecha real del registro."""
+        fecha = get(row, 'fecha_terminacion')
+
         if fecha is not None:
             try:
                 if isinstance(fecha, datetime):
@@ -124,50 +182,107 @@ def parse_excel():
             except (ValueError, KeyError):
                 pass
 
-        # Fallback: cols 70/71 con conversion ingles->español
-        mes_raw = safe_str(row[COL['mes']]).lower() if len(row) > COL['mes'] else ''
-        ano_raw = safe_str(row[COL['ano']]) if len(row) > COL['ano'] else ''
-
-        # Convertir mes ingles a español si es necesario
-        mes = MES_EN_TO_ES.get(mes_raw, mes_raw)
-
-        # Si ano no es un numero de 4 digitos, intentar extraerlo del mes raw
-        if not (ano_raw.isdigit() and len(ano_raw) == 4):
-            ano_raw = ''
-
-        return mes, ano_raw
+        return '', ''
 
     records = []
-    skipped = 0
+    sin_fecha = 0
     for row in rows[1:]:  # Skip header
-        if len(row) <= COL['equipo'] or not row[COL['equipo']]:
+        equipo = get(row, 'equipo')
+        if not equipo:
             continue
+
         mes, ano = extraer_mes_ano(row)
+        if not mes or not ano:
+            sin_fecha += 1
+
         records.append({
-            'equipo': safe_str(row[COL['equipo']]),
-            'tipo_equipo': safe_str(row[COL['tipo_equipo']]),
-            'marca': safe_str(row[COL['marca']]),
-            'modelo': safe_str(row[COL['modelo']]),
-            'razon_reparacion': safe_str(row[COL['razon']]),
-            'precio_refaccion': safe_float(row[COL['refaccion']]),
-            'precio_mano_obra': safe_float(row[COL['mano_obra']]),
-            'precio_otros': safe_float(row[COL['otros']]),
-            'total': safe_float(row[COL['total']]),
-            'dias_real': safe_float(row[COL['dias_real']]),
-            'dias_atraso': safe_float(row[COL['dias_atraso']]),
-            'nodo': safe_str(row[COL['nodo']]),
-            'region': safe_str(row[COL['region']]),
-            'clasificacion': safe_str(row[COL['clasificacion']]) if len(row) > COL['clasificacion'] else '',
-            'tipo_servicio': safe_str(row[COL['tipo_servicio']]) if len(row) > COL['tipo_servicio'] else '',
-            'tiempo_estandar': safe_float(row[COL['tiempo']]) if len(row) > COL['tiempo'] else 0,
-            'familia': safe_str(row[COL['familia']]) if len(row) > COL['familia'] else '',
+            'equipo': safe_str(equipo),
+            'tipo_equipo': safe_str(get(row, 'tipo_equipo', '')),
+            'marca': safe_str(get(row, 'marca', '')),
+            'modelo': safe_str(get(row, 'modelo', '')),
+            'razon_reparacion': safe_str(get(row, 'razon', '')),
+            'precio_refaccion': safe_float(get(row, 'refaccion', 0)),
+            'precio_mano_obra': safe_float(get(row, 'mano_obra', 0)),
+            'precio_otros': safe_float(get(row, 'otros', 0)),
+            'total': safe_float(get(row, 'total', 0)),
+            'dias_real': safe_float(get(row, 'dias_real', 0)),
+            'dias_atraso': safe_float(get(row, 'dias_atraso', 0)),
+            'nodo': safe_str(get(row, 'nodo', '')),
+            'region': safe_str(get(row, 'region', '')),
+            'clasificacion': safe_str(get(row, 'clasificacion', '')),
+            'tipo_servicio': safe_str(get(row, 'tipo_servicio', '')),
+            'tiempo_estandar': safe_float(get(row, 'tiempo', 0)),
+            'familia': safe_str(get(row, 'familia', '')),
             'mes': mes,
             'ano': ano,
-            'grupo_manto': safe_str(row[COL['grupo']]),
+            'grupo_manto': safe_str(get(row, 'grupo', '')),
         })
 
     log(f'  {len(records)} registros validos extraidos')
+    if sin_fecha:
+        log(f'  ADVERTENCIA: {sin_fecha} registros sin fecha de terminacion')
     return records
+
+
+def validar_datos(records):
+    """Valida la integridad de los datos extraidos. Retorna True si pasan, False si hay errores criticos."""
+    ok = True
+
+    # Validar que hay registros
+    if len(records) == 0:
+        log('VALIDACION FALLO: 0 registros extraidos')
+        return False
+
+    # Validar meses
+    meses_invalidos = set()
+    anos_invalidos = set()
+    sin_mes = 0
+    sin_ano = 0
+    for r in records:
+        if not r['mes']:
+            sin_mes += 1
+        elif r['mes'] not in MESES_VALIDOS:
+            meses_invalidos.add(r['mes'])
+        if not r['ano']:
+            sin_ano += 1
+        elif not (r['ano'].isdigit() and 2020 <= int(r['ano']) <= 2040):
+            anos_invalidos.add(r['ano'])
+
+    if meses_invalidos:
+        log(f'VALIDACION FALLO: Meses invalidos encontrados: {meses_invalidos}')
+        ok = False
+    if anos_invalidos:
+        log(f'VALIDACION FALLO: Anos invalidos encontrados: {anos_invalidos}')
+        ok = False
+    if sin_mes > 0:
+        log(f'VALIDACION ADVERTENCIA: {sin_mes} registros sin mes')
+    if sin_ano > 0:
+        log(f'VALIDACION ADVERTENCIA: {sin_ano} registros sin ano')
+
+    # Resumen de distribucion
+    combos = {}
+    for r in records:
+        key = f'{r["mes"]} {r["ano"]}'
+        combos[key] = combos.get(key, 0) + 1
+    log(f'  Distribucion: {dict(sorted(combos.items()))}')
+
+    # Comparar con data.json anterior (detectar caidas de registros)
+    if os.path.exists(OUTPUT_JSON):
+        try:
+            with open(OUTPUT_JSON, 'r', encoding='utf-8') as f:
+                prev = json.load(f)
+            prev_count = prev.get('count', 0)
+            if prev_count > 0 and len(records) < prev_count * 0.8:
+                log(f'VALIDACION FALLO: Registros cayeron de {prev_count} a {len(records)} (>20% menos)')
+                ok = False
+            elif prev_count > 0 and len(records) < prev_count:
+                log(f'VALIDACION ADVERTENCIA: Registros bajaron de {prev_count} a {len(records)}')
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    if ok:
+        log('  Validacion OK')
+    return ok
 
 
 def save_json(records):
@@ -257,10 +372,16 @@ def main():
         cleanup()
         sys.exit(1)
 
-    # Paso 3: Generar JSON
+    # Paso 3: Validar datos
+    if not validar_datos(records):
+        log('FALLO: Los datos no pasaron la validacion')
+        cleanup()
+        sys.exit(1)
+
+    # Paso 4: Generar JSON
     save_json(records)
 
-    # Paso 4: Subir a GitHub (si no es --local)
+    # Paso 5: Subir a GitHub (si no es --local)
     if not local_only:
         git_push()
     else:

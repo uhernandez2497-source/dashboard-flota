@@ -41,6 +41,12 @@ jobs:
           if [ -f data.json ]; then
             echo "✅ data.json generado correctamente"
             ls -lh data.json
+            COUNT=$(python -c "import json; print(json.load(open('data.json'))['count'])")
+            echo "📊 Registros: $COUNT"
+            if [ "$COUNT" -lt 1 ]; then
+              echo "❌ Error: data.json tiene 0 registros"
+              exit 1
+            fi
           else
             echo "❌ Error: data.json no fue generado"
             exit 1
