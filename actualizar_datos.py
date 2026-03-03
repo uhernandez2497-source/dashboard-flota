@@ -27,11 +27,26 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(SCRIPT_DIR, 'data.json')
 EXCEL_TEMP = os.path.join(SCRIPT_DIR, '_temp_dashboard.xlsx')
 
+# Mapeo de numero de mes a nombre en español (el dashboard espera español minuscula)
+MES_ESPANOL = {
+    1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril',
+    5: 'mayo', 6: 'junio', 7: 'julio', 8: 'agosto',
+    9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'
+}
+
+# Mapeo de mes en ingles a español (fallback si col 70 tiene nombres en ingles)
+MES_EN_TO_ES = {
+    'january': 'enero', 'february': 'febrero', 'march': 'marzo',
+    'april': 'abril', 'may': 'mayo', 'june': 'junio',
+    'july': 'julio', 'august': 'agosto', 'september': 'septiembre',
+    'october': 'octubre', 'november': 'noviembre', 'december': 'diciembre'
+}
+
 # Columnas del Excel (0-indexed)
 COL = {
     'equipo': 4, 'tipo_equipo': 8, 'marca': 10, 'modelo': 11,
-    'razon': 13, 'refaccion': 32, 'mano_obra': 33, 'otros': 34,
-    'total': 35, 'dias_real': 40, 'dias_atraso': 41, 'nodo': 45,
+    'razon': 13, 'fecha_terminacion': 18, 'refaccion': 32, 'mano_obra': 33,
+    'otros': 34, 'total': 35, 'dias_real': 40, 'dias_atraso': 41, 'nodo': 45,
     'region': 46, 'clasificacion': 63, 'tipo_servicio': 64,
     'tiempo': 68, 'familia': 69, 'mes': 70, 'ano': 71, 'grupo': 7
 }
@@ -92,10 +107,42 @@ def parse_excel():
     def safe_str(v):
         return str(v).strip() if v is not None else ''
 
+    def extraer_mes_ano(row):
+        """Extrae mes (español) y año desde Fecha Terminacion (col 18).
+        Fallback: usa cols 70/71 si la fecha no esta disponible."""
+        fecha = row[COL['fecha_terminacion']] if len(row) > COL['fecha_terminacion'] else None
+
+        # Intentar extraer de la fecha de terminacion (fuente confiable)
+        if fecha is not None:
+            try:
+                if isinstance(fecha, datetime):
+                    return MES_ESPANOL[fecha.month], str(fecha.year)
+                fecha_str = str(fecha).strip()
+                if fecha_str and fecha_str[:4].isdigit():
+                    dt = datetime.fromisoformat(fecha_str.replace(' ', 'T').split('.')[0])
+                    return MES_ESPANOL[dt.month], str(dt.year)
+            except (ValueError, KeyError):
+                pass
+
+        # Fallback: cols 70/71 con conversion ingles->español
+        mes_raw = safe_str(row[COL['mes']]).lower() if len(row) > COL['mes'] else ''
+        ano_raw = safe_str(row[COL['ano']]) if len(row) > COL['ano'] else ''
+
+        # Convertir mes ingles a español si es necesario
+        mes = MES_EN_TO_ES.get(mes_raw, mes_raw)
+
+        # Si ano no es un numero de 4 digitos, intentar extraerlo del mes raw
+        if not (ano_raw.isdigit() and len(ano_raw) == 4):
+            ano_raw = ''
+
+        return mes, ano_raw
+
     records = []
+    skipped = 0
     for row in rows[1:]:  # Skip header
         if len(row) <= COL['equipo'] or not row[COL['equipo']]:
             continue
+        mes, ano = extraer_mes_ano(row)
         records.append({
             'equipo': safe_str(row[COL['equipo']]),
             'tipo_equipo': safe_str(row[COL['tipo_equipo']]),
@@ -114,8 +161,8 @@ def parse_excel():
             'tipo_servicio': safe_str(row[COL['tipo_servicio']]) if len(row) > COL['tipo_servicio'] else '',
             'tiempo_estandar': safe_float(row[COL['tiempo']]) if len(row) > COL['tiempo'] else 0,
             'familia': safe_str(row[COL['familia']]) if len(row) > COL['familia'] else '',
-            'mes': safe_str(row[COL['mes']]).lower() if len(row) > COL['mes'] else '',
-            'ano': safe_str(row[COL['ano']]) if len(row) > COL['ano'] else '',
+            'mes': mes,
+            'ano': ano,
             'grupo_manto': safe_str(row[COL['grupo']]),
         })
 
