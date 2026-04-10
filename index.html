@@ -165,7 +165,7 @@ const COL={equipo:4,tipo_equipo:8,marca:10,modelo:11,razon:13,refaccion:32,mano_
 const MO={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12};
 const MS={enero:'Ene',febrero:'Feb',marzo:'Mar',abril:'Abr',mayo:'May',junio:'Jun',julio:'Jul',agosto:'Ago',septiembre:'Sep',octubre:'Oct',noviembre:'Nov',diciembre:'Dic'};
 const PAL=['#2563eb','#7c3aed','#0d9488','#ea580c','#dc2626','#16a34a','#d946ef','#0284c7','#ca8a04','#be185d','#6366f1','#059669'];
-let RAW=[],F={year:'all',month:'all',tipo:'all',clasif:'all'},CH={};
+let RAW=[],F={year:'all',month:[],tipo:'all',clasif:'all'},CH={};
 
 // ── LOAD ──
 async function loadFromOneDrive(){
@@ -263,13 +263,15 @@ async function refreshData(){
 // ── FILTERS ──
 function setupF(){
   const y=[...new Set(RAW.map(r=>r.ano))].filter(Boolean).sort(),m=[...new Set(RAW.map(r=>r.mes))].filter(Boolean).sort((a,b)=>(MO[a]||99)-(MO[b]||99)),t=[...new Set(RAW.map(r=>r.tipo_equipo))].filter(Boolean).sort(),c=[...new Set(RAW.map(r=>r.clasificacion))].filter(Boolean).sort();
-  rB('fY','year',y,v=>v);rB('fM','month',m,v=>cap(v));rB('fT','tipo',t,v=>v);rB('fC','clasif',c,v=>v);
+  rB('fY','year',y,v=>v);rBM('fM',m);rB('fT','tipo',t,v=>v);rB('fC','clasif',c,v=>v);
 }
 function rB(id,k,vs,fn){const el=document.getElementById(id),cu=F[k];let h=`<button class="fbtn ${cu==='all'?'active':''}" data-f="${k}" data-v="all" onclick="sF('${k}','all')">Todos</button>`;vs.forEach(v=>{h+=`<button class="fbtn ${cu===v?'active':''}" data-f="${k}" data-v="${v}" onclick="sF('${k}','${v}')">${fn(v)}</button>`;});el.innerHTML=h;}
+function rBM(id,vs){const el=document.getElementById(id),sel=F.month;let h=`<button class="fbtn ${sel.length===0?'active':''}" data-f="month" data-v="all" onclick="sFM('all')">Todos</button>`;vs.forEach(v=>{h+=`<button class="fbtn ${sel.includes(v)?'active':''}" data-f="month" data-v="${v}" onclick="sFM('${v}')">${cap(v)}</button>`;});el.innerHTML=h;}
 function sF(k,v){F[k]=v;document.querySelectorAll(`[data-f="${k}"]`).forEach(b=>b.classList.toggle('active',b.dataset.v===v));updateAll();}
-function resetF(){F={year:'all',month:'all',tipo:'all',clasif:'all'};setupF();updateAll();}
-function gF(){return RAW.filter(r=>{if(F.year!=='all'&&r.ano!==F.year)return!1;if(F.month!=='all'&&r.mes!==F.month)return!1;if(F.tipo!=='all'&&r.tipo_equipo!==F.tipo)return!1;if(F.clasif!=='all'&&r.clasificacion!==F.clasif)return!1;return!0;});}
-function getFilterDesc(){const p=[];if(F.year!=='all')p.push('Ano: '+F.year);if(F.month!=='all')p.push('Mes: '+cap(F.month));if(F.tipo!=='all')p.push('Tipo: '+F.tipo);if(F.clasif!=='all')p.push('Clasif: '+F.clasif);return p.length?p.join(' | '):'Sin filtros (todos los datos)';}
+function sFM(v){if(v==='all'){F.month=[];}else{const i=F.month.indexOf(v);if(i===-1)F.month.push(v);else F.month.splice(i,1);}document.querySelectorAll('[data-f="month"]').forEach(b=>{if(b.dataset.v==='all')b.classList.toggle('active',F.month.length===0);else b.classList.toggle('active',F.month.includes(b.dataset.v));});updateAll();}
+function resetF(){F={year:'all',month:[],tipo:'all',clasif:'all'};setupF();updateAll();}
+function gF(){return RAW.filter(r=>{if(F.year!=='all'&&r.ano!==F.year)return!1;if(F.month.length>0&&!F.month.includes(r.mes))return!1;if(F.tipo!=='all'&&r.tipo_equipo!==F.tipo)return!1;if(F.clasif!=='all'&&r.clasificacion!==F.clasif)return!1;return!0;});}
+function getFilterDesc(){const p=[];if(F.year!=='all')p.push('Ano: '+F.year);if(F.month.length>0)p.push('Mes: '+F.month.map(m=>cap(m)).join(', '));if(F.tipo!=='all')p.push('Tipo: '+F.tipo);if(F.clasif!=='all')p.push('Clasif: '+F.clasif);return p.length?p.join(' | '):'Sin filtros (todos los datos)';}
 
 // ── UTILS ──
 function cap(s){return s?s[0].toUpperCase()+s.slice(1):'';}
@@ -360,7 +362,7 @@ function generateSummary(){
   const tRef=d.reduce((s,r)=>s+r.precio_refaccion,0);
   const tMO=d.reduce((s,r)=>s+r.precio_mano_obra,0);
   const tOtros=d.reduce((s,r)=>s+r.precio_otros,0);
-  const fA=F.year==='all'?'Todos':F.year,fMe=F.month==='all'?'Todos':cap(F.month);
+  const fA=F.year==='all'?'Todos':F.year,fMe=F.month.length===0?'Todos':F.month.map(m=>cap(m)).join(', ');
   const fT=F.tipo==='all'?'Todos':F.tipo,fCl=F.clasif==='all'?'Todos':F.clasif;
 
   let mesR='';mP.forEach(p=>{const rr=mG[p],g=rr.reduce((s,r)=>s+r.total,0),h=rr.reduce((s,r)=>s+r.tiempo_estandar,0);mesR+=`<tr><td>${p}</td><td>${rr.length}</td><td>${fm(g)}</td><td>${fn(h)}h</td><td>${fm(rr.length?g/rr.length:0)}</td></tr>`;});
