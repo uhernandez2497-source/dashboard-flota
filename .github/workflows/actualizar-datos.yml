@@ -40,7 +40,7 @@ jobs:
         run: |
           if [ -f data.json ]; then
             echo "✅ data.json generado correctamente"
-            ls -lh data.json
+            ls -lh data.json data.js
             COUNT=$(python -c "import json; print(json.load(open('data.json'))['count'])")
             echo "📊 Registros: $COUNT"
             if [ "$COUNT" -lt 1 ]; then

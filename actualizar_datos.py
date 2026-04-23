@@ -21,8 +21,8 @@ import sys
 from datetime import datetime
 
 # ── CONFIGURACION ──
-ONEDRIVE_URL = 'https://proxylogis-my.sharepoint.com/personal/carlosu_hernandez_mecanicatek_com/_layouts/15/download.aspx?share=IQD1veTLe2bTQIoFUNNe7y3yAUzwHQ-2YN3uHUdOc4vF8Fs'
-SHEET_NAME = 'bd'
+ONEDRIVE_URL = 'https://proxylogis-my.sharepoint.com/personal/carlosu_hernandez_mecanicatek_com/_layouts/15/download.aspx?share=IQBkHquuUpUmR4eUs1jTUCezAb4_AMRJLf9ZR2KC27WL7GU'
+SHEET_NAME = 'Sheet1'
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(SCRIPT_DIR, 'data.json')
 EXCEL_TEMP = os.path.join(SCRIPT_DIR, '_temp_dashboard.xlsx')
@@ -36,19 +36,30 @@ HEADER_MAP = {
     'Modelo': 'modelo',
     'Razon Reparacion': 'razon',
     'Fecha Terminacion': 'fecha_terminacion',
+    'Fecha Ingreso': 'fecha_ingreso',
     'Precio Refaccion': 'refaccion',
     'Precio Mano Obra': 'mano_obra',
     'Precio Otros Talleres': 'otros',
     'Total': 'total',
     'Dias Real': 'dias_real',
     'Dias Atraso': 'dias_atraso',
+    'Dias Promedio': 'dias_promedio',
     'Nodo': 'nodo',
+    'Taller Orden': 'taller_orden',
     'Region': 'region',
+    'Zona Cliente': 'zona_cliente',
     'Clasificacion De La Orden': 'clasificacion',
     'Tipo de Servicio': 'tipo_servicio',
     'Tiempo estandar': 'tiempo',
     'Familia': 'familia',
     'Grupo Mantenimiento': 'grupo',
+    'Orden': 'orden',
+    'Cliente': 'cliente',
+    'Operador': 'operador',
+    'Solicitante': 'solicitante',
+    'Calificacion Atendido A Tiempo': 'atendido_a_tiempo',
+    'Kms Acumulados': 'kms_acumulados',
+    'Serie': 'serie',
 }
 
 # Columnas obligatorias (el script falla si no las encuentra)
@@ -166,6 +177,20 @@ def parse_excel():
             return default
         return row[idx]
 
+    def safe_date_str(v):
+        """Convierte fecha a string ISO para JSON."""
+        if v is None:
+            return ''
+        try:
+            if isinstance(v, datetime):
+                return v.strftime('%d/%m/%Y %H:%M')
+            s = str(v).strip()
+            if s:
+                return s
+        except (ValueError, TypeError):
+            pass
+        return ''
+
     def extraer_mes_ano(row):
         """Extrae mes (español) y año desde Fecha Terminacion.
         Fuente primaria y confiable: la fecha real del registro."""
@@ -197,18 +222,25 @@ def parse_excel():
 
         records.append({
             'equipo': safe_str(equipo),
+            'orden': safe_str(get(row, 'orden', '')),
             'tipo_equipo': safe_str(get(row, 'tipo_equipo', '')),
             'marca': safe_str(get(row, 'marca', '')),
             'modelo': safe_str(get(row, 'modelo', '')),
+            'serie': safe_str(get(row, 'serie', '')),
             'razon_reparacion': safe_str(get(row, 'razon', '')),
+            'fecha_ingreso': safe_date_str(get(row, 'fecha_ingreso')),
+            'fecha_terminacion': safe_date_str(get(row, 'fecha_terminacion')),
             'precio_refaccion': safe_float(get(row, 'refaccion', 0)),
             'precio_mano_obra': safe_float(get(row, 'mano_obra', 0)),
             'precio_otros': safe_float(get(row, 'otros', 0)),
             'total': safe_float(get(row, 'total', 0)),
             'dias_real': safe_float(get(row, 'dias_real', 0)),
             'dias_atraso': safe_float(get(row, 'dias_atraso', 0)),
+            'dias_promedio': safe_float(get(row, 'dias_promedio', 0)),
             'nodo': safe_str(get(row, 'nodo', '')),
+            'taller_orden': safe_str(get(row, 'taller_orden', '')),
             'region': safe_str(get(row, 'region', '')),
+            'zona_cliente': safe_str(get(row, 'zona_cliente', '')),
             'clasificacion': safe_str(get(row, 'clasificacion', '')),
             'tipo_servicio': safe_str(get(row, 'tipo_servicio', '')),
             'tiempo_estandar': safe_float(get(row, 'tiempo', 0)),
@@ -216,6 +248,11 @@ def parse_excel():
             'mes': mes,
             'ano': ano,
             'grupo_manto': safe_str(get(row, 'grupo', '')),
+            'cliente': safe_str(get(row, 'cliente', '')),
+            'operador': safe_str(get(row, 'operador', '')),
+            'solicitante': safe_str(get(row, 'solicitante', '')),
+            'atendido_a_tiempo': safe_str(get(row, 'atendido_a_tiempo', '')),
+            'kms_acumulados': safe_float(get(row, 'kms_acumulados', 0)),
         })
 
     log(f'  {len(records)} registros validos extraidos')
@@ -286,17 +323,27 @@ def validar_datos(records):
 
 
 def save_json(records):
-    """Guarda los registros como data.json."""
+    """Guarda los registros como data.json y data.js."""
     output = {
         'updated': datetime.now().isoformat(),
         'count': len(records),
         'data': records
     }
+    # data.json (para GitHub Pages y dashboard original)
     with open(OUTPUT_JSON, 'w', encoding='utf-8') as f:
         json.dump(output, f, ensure_ascii=False, separators=(',', ':'))
 
     size_kb = os.path.getsize(OUTPUT_JSON) / 1024
     log(f'Guardado: {OUTPUT_JSON} ({size_kb:.0f} KB, {len(records)} registros)')
+
+    # data.js (para carga directa en dashboard_ordenes.html via file://)
+    output_js = os.path.join(SCRIPT_DIR, 'data.js')
+    json_str = json.dumps(output, ensure_ascii=False, separators=(',', ':'))
+    with open(output_js, 'w', encoding='utf-8') as f:
+        f.write(f'window.__FLEET_DATA__={json_str};')
+
+    size_kb_js = os.path.getsize(output_js) / 1024
+    log(f'Guardado: {output_js} ({size_kb_js:.0f} KB)')
 
 
 def git_push():
@@ -310,7 +357,7 @@ def git_push():
             subprocess.run(['git', 'config', 'user.email', os.getenv('GIT_AUTHOR_EMAIL', 'actions@github.com')],
                          cwd=SCRIPT_DIR, check=True, capture_output=True)
 
-        subprocess.run(['git', 'add', 'data.json'], cwd=SCRIPT_DIR, check=True, capture_output=True)
+        subprocess.run(['git', 'add', 'data.json', 'data.js'], cwd=SCRIPT_DIR, check=True, capture_output=True)
         ts = datetime.now().strftime('%Y-%m-%d %H:%M')
         result = subprocess.run(
             ['git', 'commit', '-m', f'Actualizar datos: {ts}'],
