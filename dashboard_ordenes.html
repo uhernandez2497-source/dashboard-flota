@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" class="dark">
+<html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -35,7 +35,7 @@ body{font-family:'Inter',sans-serif}
 .chart-container{min-height:300px}
 </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+<body>
 
 <div id="loading-screen" style="display:flex;justify-content:center;align-items:center;height:100vh;background:#111827;color:white;font-family:Inter,sans-serif">
 <div style="text-align:center">
@@ -1309,10 +1309,13 @@ function App(){
     setUpdating(false);
   };
 
-  // Apply dark mode class
+  // Apply dark mode class on <html> so all dark: variants work
   useEffect(()=>{
-    document.documentElement.classList.toggle('dark',darkMode);
-    document.body.className=darkMode?'bg-gray-900 text-gray-100':'bg-gray-100 text-gray-900';
+    if(darkMode){
+      document.documentElement.classList.add('dark');
+    }else{
+      document.documentElement.classList.remove('dark');
+    }
   },[darkMode]);
 
   // Get unique values for filters
@@ -1376,11 +1379,13 @@ function App(){
   const activeFilters=Object.values(filters).filter(v=>Array.isArray(v)?v.length>0:v).length;
 
   if(loading) return(
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-3 border-gray-600 border-t-blue-500 rounded-full spinner mx-auto mb-3" style={{borderWidth:3}}></div>
-        <p className="text-white text-sm">Cargando datos en vivo...</p>
-        <p className="text-gray-500 text-xs mt-1">Conectando con GitHub Pages</p>
+    <div className="dark">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-3 border-gray-600 border-t-blue-500 rounded-full spinner mx-auto mb-3" style={{borderWidth:3}}></div>
+          <p className="text-white text-sm">Cargando datos en vivo...</p>
+          <p className="text-gray-500 text-xs mt-1">Conectando con GitHub Pages</p>
+        </div>
       </div>
     </div>
   );
@@ -1388,7 +1393,7 @@ function App(){
   if(!rawData) return <UploadScreen onDataLoad={(data,name)=>{setRawData(data);setFileName(name);}}/>;
 
   return(
-    <div className="min-h-screen transition-colors duration-300">
+    <div className={`min-h-screen transition-colors duration-300 ${darkMode?'bg-gray-900 text-gray-100':'bg-gray-100 text-gray-900'}`}>
       {/* HEADER */}
       <header className="bg-gradient-to-r from-[#0D3B6F] via-[#185FA5] to-[#1a6fba] px-4 py-3 sticky top-0 z-50 shadow-lg">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between">
