@@ -59,11 +59,53 @@ body{font-family:'Inter',sans-serif}
 // ===================== INIT =====================
 document.getElementById('loading-screen').style.display='none';
 
-const {useState,useMemo,useCallback,useEffect,useRef,Fragment}=React;
+const {useState,useMemo,useCallback,useEffect,useRef,Fragment,memo}=React;
 const RC=window.Recharts||{};
 const {BarChart,Bar,XAxis,YAxis,CartesianGrid,Tooltip:RTooltip,Legend:RLegend,
   ResponsiveContainer,PieChart,Pie,Cell,ScatterChart,Scatter,
   ComposedChart,Line,Area,LabelList}=RC;
+
+// ===================== PERFORMANCE UTILITIES =====================
+// Debounce hook - delays expensive recalculations
+function useDebounce(value,delay=300){
+  const [debounced,setDebounced]=useState(value);
+  useEffect(()=>{
+    const t=setTimeout(()=>setDebounced(value),delay);
+    return()=>clearTimeout(t);
+  },[value,delay]);
+  return debounced;
+}
+
+// Lazy render - only renders chart when scrolled into view
+function LazyChart({children,height=300}){
+  const [visible,setVisible]=useState(false);
+  const ref=useRef(null);
+  useEffect(()=>{
+    const el=ref.current;if(!el)return;
+    const obs=new IntersectionObserver(([e])=>{
+      if(e.isIntersecting){setVisible(true);obs.disconnect();}
+    },{rootMargin:'200px'});
+    obs.observe(el);
+    return()=>obs.disconnect();
+  },[]);
+  return(
+    <div ref={ref} style={{minHeight:height}}>
+      {visible?children:(
+        <div className="flex items-center justify-center h-full text-gray-400 dark:text-gray-600 text-sm" style={{height}}>
+          <svg className="w-5 h-5 spinner mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Cargando...
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Data sampling for scatter plots - limits SVG elements
+function sampleData(data,maxPoints=500){
+  if(data.length<=maxPoints) return data;
+  const step=Math.ceil(data.length/maxPoints);
+  return data.filter((_,i)=>i%step===0);
+}
 
 // ===================== CONSTANTS =====================
 const PALETTE=['#185FA5','#1D9E75','#BA7517','#A32D2D','#8B5CF6','#14B8A6','#F97316','#EC4899','#6366F1','#06B6D4','#EF4444','#22C55E'];
@@ -575,7 +617,7 @@ function KPISection({data}){
 
 // ===================== SECTION 2: COSTS =====================
 // 2a - Cost breakdown stacked bar
-function CostBreakdown({data}){
+const CostBreakdown=memo(function CostBreakdown({data}){
   const chartData=useMemo(()=>{
     const ref=sumBy(data,'precioRefaccion');
     const mo=sumBy(data,'precioManoObra');
@@ -602,9 +644,9 @@ function CostBreakdown({data}){
               </div>;
             }}/>
             <RLegend wrapperStyle={{fontSize:11}}/>
-            <Bar dataKey="Refacciones" stackId="a" fill="#185FA5" radius={[0,0,0,0]}/>
-            <Bar dataKey="Mano de Obra" stackId="a" fill="#1D9E75"/>
-            <Bar dataKey="Otros Talleres" stackId="a" fill="#BA7517" radius={[0,4,4,0]}/>
+            <Bar dataKey="Refacciones" stackId="a" fill="#185FA5" radius={[0,0,0,0]} isAnimationActive={false}/>
+            <Bar dataKey="Mano de Obra" stackId="a" fill="#1D9E75" isAnimationActive={false}/>
+            <Bar dataKey="Otros Talleres" stackId="a" fill="#BA7517" radius={[0,4,4,0]} isAnimationActive={false}/>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -615,10 +657,10 @@ function CostBreakdown({data}){
       </div>
     </Card>
   );
-}
+});
 
 // 2b - Cost by Zone
-function CostByZone({data,onFilter}){
+const CostByZone=memo(function CostByZone({data,onFilter}){
   const chartData=useMemo(()=>{
     const g=groupBy(data,'zonaCliente');
     return Object.entries(g).map(([k,v])=>({name:k,total:sumBy(v,'total'),count:v.length}))
@@ -641,17 +683,17 @@ function CostByZone({data,onFilter}){
                 <p>Órdenes: {payload[0].payload.count}</p>
               </div>;
             }}/>
-            <Bar dataKey="total" fill="#185FA5" radius={[4,4,0,0]} cursor="pointer"
+            <Bar dataKey="total" fill="#185FA5" radius={[4,4,0,0]} cursor="pointer" isAnimationActive={false}
               onClick={(d)=>onFilter&&onFilter('zonaCliente',d.name)}/>
           </BarChart>
         </ResponsiveContainer>
       </div>
     </Card>
   );
-}
+});
 
 // 2c - Top 10 talleres
-function TopTalleres({data,onFilter}){
+const TopTalleres=memo(function TopTalleres({data,onFilter}){
   const chartData=useMemo(()=>{
     const g=groupBy(data,'tallerOrden');
     return Object.entries(g).map(([k,v])=>({name:k,total:sumBy(v,'total'),count:v.length}))
@@ -674,18 +716,18 @@ function TopTalleres({data,onFilter}){
                 <p>Órdenes: {payload[0].payload.count}</p>
               </div>;
             }}/>
-            <Bar dataKey="total" fill="#185FA5" radius={[0,4,4,0]} cursor="pointer"
+            <Bar dataKey="total" fill="#185FA5" radius={[0,4,4,0]} cursor="pointer" isAnimationActive={false}
               onClick={(d)=>onFilter&&onFilter('taller',d.name)}/>
           </BarChart>
         </ResponsiveContainer>
       </div>
     </Card>
   );
-}
+});
 
 // ===================== SECTION 3: CLASSIFICATION =====================
 // 3a - Donut
-function ClassificationDonut({data}){
+const ClassificationDonut=memo(function ClassificationDonut({data}){
   const chartData=useMemo(()=>{
     const g=groupBy(data,'clasificacion');
     return Object.entries(g).map(([k,v])=>({name:k,value:v.length,total:sumBy(v,'total')}))
@@ -701,7 +743,7 @@ function ClassificationDonut({data}){
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%"
-                innerRadius={50} outerRadius={85} paddingAngle={2}>
+                innerRadius={50} outerRadius={85} paddingAngle={2} isAnimationActive={false}>
                 {chartData.map((e,i)=><Cell key={i} fill={CLASIF_COLORS[e.name]||PALETTE[i%PALETTE.length]}/>)}
               </Pie>
               <RTooltip content={({active,payload})=>{
@@ -730,10 +772,10 @@ function ClassificationDonut({data}){
       </div>
     </Card>
   );
-}
+});
 
 // 3b - Service Type bar chart
-function ServiceTypeChart({data}){
+const ServiceTypeChart=memo(function ServiceTypeChart({data}){
   const chartData=useMemo(()=>{
     const g=groupBy(data,'tipoServicio');
     return Object.entries(g).map(([k,v])=>({name:k,ordenes:v.length,gasto:sumBy(v,'total')}))
@@ -757,17 +799,17 @@ function ServiceTypeChart({data}){
               </div>;
             }}/>
             <RLegend wrapperStyle={{fontSize:10}}/>
-            <Bar yAxisId="left" dataKey="ordenes" fill="#185FA5" name="Órdenes" radius={[4,4,0,0]}/>
-            <Line yAxisId="right" dataKey="gasto" stroke="#BA7517" name="Gasto" strokeWidth={2} dot={{r:3}}/>
+            <Bar yAxisId="left" dataKey="ordenes" fill="#185FA5" name="Órdenes" radius={[4,4,0,0]} isAnimationActive={false}/>
+            <Line yAxisId="right" dataKey="gasto" stroke="#BA7517" name="Gasto" strokeWidth={2} dot={{r:3}} isAnimationActive={false}/>
           </ComposedChart>
         </ResponsiveContainer>
       </div>
     </Card>
   );
-}
+});
 
 // 3c - Brand corrective table
-function BrandCorrectiveTable({data}){
+const BrandCorrectiveTable=memo(function BrandCorrectiveTable({data}){
   const [sortKey,setSortKey]=useState('pct');
   const [sortDir,setSortDir]=useState(-1);
 
@@ -813,11 +855,11 @@ function BrandCorrectiveTable({data}){
       </div>
     </Card>
   );
-}
+});
 
 // ===================== SECTION 4: TIME & EFFICIENCY =====================
 // 4a - Delay by region
-function DelayByRegion({data}){
+const DelayByRegion=memo(function DelayByRegion({data}){
   const chartData=useMemo(()=>{
     const g=groupBy(data,'zonaCliente');
     return Object.entries(g).map(([k,v])=>({name:k,atraso:avgBy(v,'diasAtraso'),count:v.length}))
@@ -842,7 +884,7 @@ function DelayByRegion({data}){
                 <p>Órdenes: {payload[0].payload.count}</p>
               </div>;
             }}/>
-            <Bar dataKey="atraso" radius={[4,4,0,0]}>
+            <Bar dataKey="atraso" radius={[4,4,0,0]} isAnimationActive={false}>
               {chartData.map((e,i)=><Cell key={i} fill={getColor(e.atraso)}/>)}
             </Bar>
           </BarChart>
@@ -855,15 +897,16 @@ function DelayByRegion({data}){
       </div>
     </Card>
   );
-}
+});
 
 // 4b - Scatter days vs cost
-function DaysVsCostScatter({data}){
+const DaysVsCostScatter=memo(function DaysVsCostScatter({data}){
   const chartData=useMemo(()=>{
-    return data.filter(r=>r.diasReal>0||r.total>0).map(r=>({
+    const raw=data.filter(r=>r.diasReal>0||r.total>0).map(r=>({
       diasReal:r.diasReal,total:r.total,equipo:r.equipo,orden:r.orden,taller:r.tallerOrden,
       clasificacion:r.clasificacion,fill:norm(r.clasificacion).includes('correctiv')?'#A32D2D':'#1D9E75'
     }));
+    return sampleData(raw,500);
   },[data]);
 
   return(
@@ -897,10 +940,10 @@ function DaysVsCostScatter({data}){
       </div>
     </Card>
   );
-}
+});
 
 // 4c - Promise table (Taller performance)
-function TallerPerformanceTable({data}){
+const TallerPerformanceTable=memo(function TallerPerformanceTable({data}){
   const [sortKey,setSortKey]=useState('avgAtraso');
   const [sortDir,setSortDir]=useState(-1);
 
@@ -957,11 +1000,11 @@ function TallerPerformanceTable({data}){
       </div>
     </Card>
   );
-}
+});
 
 // ===================== SECTION 5: FLEET =====================
 // 5a - Orders by brand
-function OrdersByBrand({data,onFilter}){
+const OrdersByBrand=memo(function OrdersByBrand({data,onFilter}){
   const chartData=useMemo(()=>{
     const g=groupBy(data,'marca');
     return Object.entries(g).map(([k,v])=>({name:k,ordenes:v.length,gasto:sumBy(v,'total')}))
@@ -984,17 +1027,17 @@ function OrdersByBrand({data,onFilter}){
                 <p>Gasto: {fmt$(payload[0].payload.gasto)}</p>
               </div>;
             }}/>
-            <Bar dataKey="ordenes" fill="#185FA5" radius={[4,4,0,0]} cursor="pointer"
+            <Bar dataKey="ordenes" fill="#185FA5" radius={[4,4,0,0]} cursor="pointer" isAnimationActive={false}
               onClick={(d)=>onFilter&&onFilter('marca',d.name)}/>
           </BarChart>
         </ResponsiveContainer>
       </div>
     </Card>
   );
-}
+});
 
 // 5b - Orders by equipment type
-function OrdersByType({data}){
+const OrdersByType=memo(function OrdersByType({data}){
   const chartData=useMemo(()=>{
     const g=groupBy(data,'tipoEquipo');
     return Object.entries(g).map(([k,v])=>({name:k,ordenes:v.length,gasto:sumBy(v,'total')}))
@@ -1017,7 +1060,7 @@ function OrdersByType({data}){
                 <p>Gasto: {fmt$(payload[0].payload.gasto)}</p>
               </div>;
             }}/>
-            <Bar dataKey="ordenes" radius={[4,4,0,0]}>
+            <Bar dataKey="ordenes" radius={[4,4,0,0]} isAnimationActive={false}>
               {chartData.map((e,i)=><Cell key={i} fill={PALETTE[i%PALETTE.length]}/>)}
             </Bar>
           </BarChart>
@@ -1025,10 +1068,10 @@ function OrdersByType({data}){
       </div>
     </Card>
   );
-}
+});
 
 // 5c - Kms vs Corrective scatter
-function KmsVsCorrectiveScatter({data}){
+const KmsVsCorrectiveScatter=memo(function KmsVsCorrectiveScatter({data}){
   const chartData=useMemo(()=>{
     // Group by equipo, count corrective orders, get max kms
     const g=groupBy(data,'equipo');
@@ -1062,13 +1105,13 @@ function KmsVsCorrectiveScatter({data}){
                 <p>Total órdenes: {d.total}</p>
               </div>;
             }}/>
-            <Scatter data={chartData} fill="#185FA5" fillOpacity={0.6}/>
+            <Scatter data={chartData} fill="#185FA5" fillOpacity={0.6} isAnimationActive={false}/>
           </ScatterChart>
         </ResponsiveContainer>
       </div>
     </Card>
   );
-}
+});
 
 // ===================== SECTION 6: DETAIL TABLE =====================
 function DetailTable({data}){
@@ -1338,23 +1381,27 @@ function App(){
     return unique(rawData.filter(r=>filters.zonaCliente.includes(r.zonaCliente)),'tallerOrden');
   },[rawData,filters.zonaCliente,filterOptions.taller]);
 
-  // Apply filters
+  // Debounce filters so charts don't re-render on every click
+  const debouncedFilters=useDebounce(filters,300);
+
+  // Apply filters (uses debounced version for smooth performance)
   const filteredData=useMemo(()=>{
     if(!rawData) return[];
+    const f=debouncedFilters;
     return rawData.filter(r=>{
-      if(filters.dateStart&&r.fechaIngreso&&r.fechaIngreso<filters.dateStart) return false;
-      if(filters.dateEnd){
-        const end=new Date(filters.dateEnd);end.setHours(23,59,59);
+      if(f.dateStart&&r.fechaIngreso&&r.fechaIngreso<f.dateStart) return false;
+      if(f.dateEnd){
+        const end=new Date(f.dateEnd);end.setHours(23,59,59);
         if(r.fechaIngreso&&r.fechaIngreso>end) return false;
       }
-      if(filters.zonaCliente.length&&!filters.zonaCliente.includes(r.zonaCliente)) return false;
-      if(filters.taller.length&&!filters.taller.includes(r.tallerOrden)) return false;
-      if(filters.clasificacion.length&&!filters.clasificacion.includes(r.clasificacion)) return false;
-      if(filters.tipoServicio.length&&!filters.tipoServicio.includes(r.tipoServicio)) return false;
-      if(filters.marca.length&&!filters.marca.includes(r.marca)) return false;
-      if(filters.tipoEquipo.length&&!filters.tipoEquipo.includes(r.tipoEquipo)) return false;
-      if(filters.searchText){
-        const s=filters.searchText.toLowerCase();
+      if(f.zonaCliente.length&&!f.zonaCliente.includes(r.zonaCliente)) return false;
+      if(f.taller.length&&!f.taller.includes(r.tallerOrden)) return false;
+      if(f.clasificacion.length&&!f.clasificacion.includes(r.clasificacion)) return false;
+      if(f.tipoServicio.length&&!f.tipoServicio.includes(r.tipoServicio)) return false;
+      if(f.marca.length&&!f.marca.includes(r.marca)) return false;
+      if(f.tipoEquipo.length&&!f.tipoEquipo.includes(r.tipoEquipo)) return false;
+      if(f.searchText){
+        const s=f.searchText.toLowerCase();
         if(!(r.orden||'').toLowerCase().includes(s)&&
            !(r.equipo||'').toLowerCase().includes(s)&&
            !(r.cliente||'').toLowerCase().includes(s)&&
@@ -1362,19 +1409,19 @@ function App(){
       }
       return true;
     });
-  },[rawData,filters]);
+  },[rawData,debouncedFilters]);
 
   const clearFilters=()=>setFilters({dateStart:null,dateEnd:null,zonaCliente:[],taller:[],clasificacion:[],tipoServicio:[],marca:[],tipoEquipo:[],searchText:''});
 
-  // Chart click filter handler
-  const handleChartFilter=(type,value)=>{
+  // Chart click filter handler (stable ref to avoid re-renders)
+  const handleChartFilter=useCallback((type,value)=>{
     setFilters(f=>{
       const key=type==='taller'?'taller':type;
       const arr=f[key]||[];
       if(arr.includes(value)) return{...f,[key]:arr.filter(x=>x!==value)};
       return{...f,[key]:[...arr,value]};
     });
-  };
+  },[]);
 
   const activeFilters=Object.values(filters).filter(v=>Array.isArray(v)?v.length>0:v).length;
 
@@ -1490,38 +1537,48 @@ function App(){
             <KPISection data={filteredData}/>
 
             {/* Section 2: Costs */}
-            <Section title="Análisis de Costos" cols="grid-cols-1 lg:grid-cols-2">
-              <CostBreakdown data={filteredData}/>
-              <CostByZone data={filteredData} onFilter={handleChartFilter}/>
-              <TopTalleres data={filteredData} onFilter={handleChartFilter}/>
-            </Section>
+            <LazyChart height={400}>
+              <Section title="Análisis de Costos" cols="grid-cols-1 lg:grid-cols-2">
+                <CostBreakdown data={filteredData}/>
+                <CostByZone data={filteredData} onFilter={handleChartFilter}/>
+                <TopTalleres data={filteredData} onFilter={handleChartFilter}/>
+              </Section>
+            </LazyChart>
 
             {/* Section 3: Classification */}
-            <Section title="Análisis Correctivo vs Preventivo" cols="grid-cols-1 lg:grid-cols-2">
-              <ClassificationDonut data={filteredData}/>
-              <ServiceTypeChart data={filteredData}/>
-              <BrandCorrectiveTable data={filteredData}/>
-            </Section>
+            <LazyChart height={400}>
+              <Section title="Análisis Correctivo vs Preventivo" cols="grid-cols-1 lg:grid-cols-2">
+                <ClassificationDonut data={filteredData}/>
+                <ServiceTypeChart data={filteredData}/>
+                <BrandCorrectiveTable data={filteredData}/>
+              </Section>
+            </LazyChart>
 
             {/* Section 4: Time & Efficiency */}
-            <Section title="Tiempos y Eficiencia" cols="grid-cols-1 lg:grid-cols-2">
-              <DelayByRegion data={filteredData}/>
-              <DaysVsCostScatter data={filteredData}/>
-              <TallerPerformanceTable data={filteredData}/>
-            </Section>
+            <LazyChart height={400}>
+              <Section title="Tiempos y Eficiencia" cols="grid-cols-1 lg:grid-cols-2">
+                <DelayByRegion data={filteredData}/>
+                <DaysVsCostScatter data={filteredData}/>
+                <TallerPerformanceTable data={filteredData}/>
+              </Section>
+            </LazyChart>
 
             {/* Section 5: Fleet */}
-            <Section title="Análisis de Flota" cols="grid-cols-1 lg:grid-cols-2">
-              <OrdersByBrand data={filteredData} onFilter={handleChartFilter}/>
-              <OrdersByType data={filteredData}/>
-              <KmsVsCorrectiveScatter data={filteredData}/>
-            </Section>
+            <LazyChart height={400}>
+              <Section title="Análisis de Flota" cols="grid-cols-1 lg:grid-cols-2">
+                <OrdersByBrand data={filteredData} onFilter={handleChartFilter}/>
+                <OrdersByType data={filteredData}/>
+                <KmsVsCorrectiveScatter data={filteredData}/>
+              </Section>
+            </LazyChart>
 
             {/* Section 6: Detail Table */}
-            <section className="fade-in">
-              <h2 className="text-lg font-bold mb-3 text-gray-800 dark:text-gray-200">Tabla de Detalle</h2>
-              <DetailTable data={filteredData}/>
-            </section>
+            <LazyChart height={300}>
+              <section className="fade-in">
+                <h2 className="text-lg font-bold mb-3 text-gray-800 dark:text-gray-200">Tabla de Detalle</h2>
+                <DetailTable data={filteredData}/>
+              </section>
+            </LazyChart>
           </>
         )}
       </main>
