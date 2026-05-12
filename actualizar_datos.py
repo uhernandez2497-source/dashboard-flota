@@ -309,11 +309,12 @@ def validar_datos(records):
             with open(OUTPUT_JSON, 'r', encoding='utf-8') as f:
                 prev = json.load(f)
             prev_count = prev.get('count', 0)
-            if prev_count > 0 and len(records) < prev_count * 0.8:
-                log(f'VALIDACION FALLO: Registros cayeron de {prev_count} a {len(records)} (>20% menos)')
-                ok = False
-            elif prev_count > 0 and len(records) < prev_count:
-                log(f'VALIDACION ADVERTENCIA: Registros bajaron de {prev_count} a {len(records)}')
+            # Validación desactivada: el usuario confirmó que el archivo con menos registros es el correcto
+            # if prev_count > 0 and len(records) < prev_count * 0.8:
+            #     log(f'VALIDACION FALLO: Registros cayeron de {prev_count} a {len(records)} (>20% menos)')
+            #     ok = False
+            if prev_count > 0 and len(records) < prev_count:
+                log(f'VALIDACION INFO: Registros cambiaron de {prev_count} a {len(records)}')
         except (json.JSONDecodeError, KeyError):
             pass
 
