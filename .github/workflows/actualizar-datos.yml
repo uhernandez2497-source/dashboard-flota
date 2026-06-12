@@ -2,9 +2,9 @@ name: Actualizar Datos del Dashboard
 
 on:
   schedule:
-    # Ejecutar todos los días a las 6:00 AM (hora UTC)
-    # Ajusta según tu zona horaria (UTC-6 = 12:00 PM hora México)
-    - cron: '0 6 * * *'
+    # Ejecutar cada hora para mantener datos actualizados en tiempo real
+    # Se ejecuta a la hora en punto (00 minutos) de cada hora
+    - cron: '0 * * * *'
 
   workflow_dispatch:  # Permite ejecutar manualmente desde GitHub
 

@@ -210,54 +210,25 @@ async function loadFromJSON(){
   }catch(e){console.warn('loadFromJSON:',e.message);return false;}
 }
 
-// ── REFRESH: Actualizar desde OneDrive vía API ──
+// ── REFRESH: Actualizar directamente desde OneDrive en tiempo real ──
 async function refreshData(){
   const btn = document.getElementById('refreshBtn');
-  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.classList.add('spinning');
 
-  try {
-    // Mostrar estado de carga
-    setSt('loading', 'Solicitando actualización desde OneDrive...');
-    btn.disabled = true;
-    btn.classList.add('spinning');
+  console.log('[Dashboard] Actualizando desde OneDrive...');
 
-    // Llamar a la función serverless para ejecutar el workflow
-    const API_URL = 'https://dashboard-flota-nad7caud6-uhernandez2497-sources-projects.vercel.app/api/trigger-update';
+  // Intentar cargar directamente desde OneDrive
+  await loadFromOneDrive();
 
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      setSt('loading', 'Descargando datos de OneDrive... (30-60s)');
-
-      // Esperar 45 segundos para que el workflow descargue y actualice
-      await new Promise(resolve => setTimeout(resolve, 45000));
-
-      // Recargar datos actualizados
-      setSt('loading', 'Cargando datos actualizados...');
-      await loadFromJSON();
-
-      setSt('ok', 'Datos actualizados desde OneDrive exitosamente');
-    } else {
-      throw new Error(result.error || 'Error al actualizar');
-    }
-
-  } catch (error) {
-    console.error('Error al actualizar:', error);
-    setSt('error', 'Error al actualizar: ' + error.message);
-
-    // Intentar cargar datos existentes como fallback
+  // Si falla OneDrive, intentar data.json como fallback
+  if(RAW.length === 0){
+    console.warn('[Dashboard] OneDrive falló, intentando data.json...');
     await loadFromJSON();
-  } finally {
-    btn.disabled = false;
-    btn.classList.remove('spinning');
   }
+
+  btn.disabled = false;
+  btn.classList.remove('spinning');
 }
 
 // ── FILTERS ──
@@ -467,26 +438,49 @@ document.getElementById("copyBtn").onclick=function(){var r=document.createRange
 // ── INIT ──
 document.addEventListener('DOMContentLoaded',async()=>{
   console.log('[Dashboard] Iniciando carga de datos...');
-  // 1. data.json local (PRIORIDAD - Actualizado por GitHub Actions)
-  if(await loadFromJSON()){
-    console.log('[Dashboard] Datos cargados desde data.json (GitHub Actions)');
-    setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);return;
+
+  // ESTRATEGIA DE CARGA EN VIVO:
+  // 1. Intentar OneDrive primero (datos en tiempo real)
+  // 2. Fallback a data.json (actualizado cada hora por GitHub Actions)
+  // 3. Fallback a cache local
+
+  console.log('[Dashboard] Intentando OneDrive (datos en vivo)...');
+  await loadFromOneDrive();
+
+  // Si OneDrive funcionó, terminar
+  if(RAW.length > 0){
+    console.log('[Dashboard] ✅ Datos cargados en vivo desde OneDrive');
+    setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);
+    return;
   }
-  console.warn('[Dashboard] data.json fallo, intentando cache...');
-  // 2. Cache local como fallback
+
+  // Fallback 1: data.json (actualizado cada hora)
+  console.warn('[Dashboard] OneDrive falló, intentando data.json...');
+  if(await loadFromJSON()){
+    console.log('[Dashboard] ✅ Datos cargados desde data.json (GitHub Actions)');
+    setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);
+    return;
+  }
+
+  // Fallback 2: Cache local
+  console.warn('[Dashboard] data.json falló, intentando cache local...');
   const cached=localStorage.getItem('dashRAW');
   if(cached){
-    try{RAW=JSON.parse(cached);const ts=localStorage.getItem('dashTS')||'Cache';
-    console.log('[Dashboard] Usando cache local:',RAW.length,'registros');
-    setSt('ok',RAW.length+' registros (cache) | '+ts);
-    document.getElementById('bUpd').textContent=ts+' (cache)';
-    document.getElementById('fTs').textContent='Datos en cache | '+ts;
-    setupF();updateAll();
-    setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);return;
+    try{
+      RAW=JSON.parse(cached);
+      const ts=localStorage.getItem('dashTS')||'Cache';
+      console.log('[Dashboard] ⚠️ Usando cache local:',RAW.length,'registros');
+      setSt('ok',RAW.length+' registros (cache) | '+ts);
+      document.getElementById('bUpd').textContent=ts+' (cache)';
+      document.getElementById('fTs').textContent='Datos en cache | '+ts;
+      setupF();updateAll();
+      setTimeout(()=>document.getElementById('loading').classList.add('hide'),300);
+      return;
     }catch(e){console.warn('[Dashboard] Cache corrupto:',e.message);}
   }
-  // 3. Sin datos disponibles
-  setSt('error','No hay datos disponibles. Verifica que data.json exista.');
+
+  // Sin datos disponibles
+  setSt('error','No hay datos disponibles. Presiona Actualizar para cargar desde OneDrive.');
   setTimeout(()=>document.getElementById('loading').classList.add('hide'),500);
 });
 </script>
