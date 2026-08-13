@@ -210,20 +210,25 @@ async function loadFromJSON(){
   }catch(e){console.warn('loadFromJSON:',e.message);return false;}
 }
 
-// ── REFRESH: Actualizar directamente desde OneDrive en tiempo real ──
+// ── REFRESH: Trigger GitHub Actions via Vercel API ──
+const VERCEL_API='https://dashboard-flota-nad7caud6-uhernandez2497-sources-projects.vercel.app/api/trigger-update';
 async function refreshData(){
   const btn = document.getElementById('refreshBtn');
   btn.disabled = true;
   btn.classList.add('spinning');
+  setSt('loading','Iniciando actualización...');
 
-  console.log('[Dashboard] Actualizando desde OneDrive...');
-
-  // Intentar cargar directamente desde OneDrive
-  await loadFromOneDrive();
-
-  // Si falla OneDrive, intentar data.json como fallback
-  if(RAW.length === 0){
-    console.warn('[Dashboard] OneDrive falló, intentando data.json...');
+  try{
+    const res = await fetch(VERCEL_API,{method:'POST',headers:{'Content-Type':'application/json'}});
+    if(!res.ok) throw new Error('API error '+res.status);
+    setSt('loading','Descargando datos de OneDrive (45 seg)...');
+    // Esperar a que GitHub Actions termine
+    await new Promise(r=>setTimeout(r,45000));
+    setSt('loading','Cargando datos actualizados...');
+    await loadFromJSON();
+  }catch(e){
+    console.warn('[Dashboard] Vercel API falló:',e.message);
+    setSt('loading','Cargando datos guardados...');
     await loadFromJSON();
   }
 
