@@ -16,7 +16,7 @@ jobs:
         run: |
           echo "🔄 Iniciando actualización via Vercel API..."
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://dashboard-flota-nad7caud6-uhernandez2497-sources-projects.vercel.app/api/trigger-update" \
+            "https://dashmantenimiento.vercel.app/api/trigger-update" \
             -H "Content-Type: application/json" \
             --max-time 90)
 
