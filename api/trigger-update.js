@@ -161,40 +161,47 @@ function parseExcel(ab) {
   return records;
 }
 
-// ── Obtiene el SHA actual de un archivo en GitHub (necesario para actualizar) ──
-async function getFileSha(repo, path, token) {
-  const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-    headers: {
-      'Accept': 'application/vnd.github.v3+json',
-      'Authorization': `Bearer ${token}`,
-      'User-Agent': 'Dashboard-Flota',
-    },
-  });
-  if (!res.ok) return null; // archivo nuevo
-  const data = await res.json();
-  return data.sha || null;
-}
+const GH_HEADERS = token => ({
+  'Accept': 'application/vnd.github.v3+json',
+  'Authorization': `Bearer ${token}`,
+  'Content-Type': 'application/json',
+  'User-Agent': 'Dashboard-Flota',
+});
 
-// ── Hace commit de un archivo a GitHub via API ──
-async function commitFile(repo, path, content, message, token, sha) {
-  const body = { message, content, branch: 'master' };
-  if (sha) body.sha = sha;
+// ── Hace commit de un archivo a GitHub, con auto-retry si hay conflicto de SHA ──
+async function commitFile(repo, path, content, message, token) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    // Obtener SHA actual del archivo en cada intento (siempre fresco)
+    const getRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+      headers: GH_HEADERS(token),
+    });
+    let sha = undefined;
+    if (getRes.ok) {
+      const fileData = await getRes.json();
+      sha = fileData.sha || undefined;
+    }
 
-  const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
-    method: 'PUT',
-    headers: {
-      'Accept': 'application/vnd.github.v3+json',
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'User-Agent': 'Dashboard-Flota',
-    },
-    body: JSON.stringify(body),
-  });
+    const body = { message, content, branch: 'master' };
+    if (sha) body.sha = sha;
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`GitHub commit ${path}: ${res.status} - ${err}`);
+    const putRes = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+      method: 'PUT',
+      headers: GH_HEADERS(token),
+      body: JSON.stringify(body),
+    });
+
+    if (putRes.ok) return; // éxito
+
+    if (putRes.status === 409) {
+      // Conflicto de SHA — reintentamos con SHA fresco
+      continue;
+    }
+
+    const err = await putRes.text();
+    throw new Error(`GitHub commit ${path}: ${putRes.status} - ${err}`);
   }
+
+  throw new Error(`GitHub commit ${path}: demasiados conflictos de SHA`);
 }
 
 // ── Handler principal ──
@@ -236,16 +243,9 @@ export default async function handler(req, res) {
     const ts = now.toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
     const message = `Actualizar datos: ${ts} (${records.length} registros)`;
 
-    // 4. Commit data.json y data.js a GitHub (en paralelo para ahorrar tiempo)
-    const [shaJson, shaJs] = await Promise.all([
-      getFileSha(repo, 'data.json', GITHUB_TOKEN),
-      getFileSha(repo, 'data.js', GITHUB_TOKEN),
-    ]);
-
-    await Promise.all([
-      commitFile(repo, 'data.json', jsonB64, message, GITHUB_TOKEN, shaJson),
-      commitFile(repo, 'data.js', jsB64, message, GITHUB_TOKEN, shaJs),
-    ]);
+    // 4. Commit data.json y data.js secuencialmente (evita conflictos de SHA)
+    await commitFile(repo, 'data.json', jsonB64, message, GITHUB_TOKEN);
+    await commitFile(repo, 'data.js', jsB64, message, GITHUB_TOKEN);
 
     return res.status(200).json({
       success: true,
